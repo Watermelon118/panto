@@ -5,6 +5,7 @@ import com.panto.wms.auth.dto.LoginResponse;
 import com.panto.wms.auth.security.JwtProperties;
 import com.panto.wms.auth.service.AuthService;
 import com.panto.wms.common.api.Result;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -49,11 +50,27 @@ public class AuthController {
         HttpServletRequest httpServletRequest
     ) {
         AuthService.LoginResult loginResult = authService.login(request, resolveClientIp(httpServletRequest));
+        return buildTokenResponse(loginResult);
+    }
 
+    /**
+     * 刷新 Access Token。
+     *
+     * @param httpServletRequest HTTP 请求
+     * @return 刷新结果
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<Result<LoginResponse>> refresh(HttpServletRequest httpServletRequest) {
+        String refreshToken = extractRefreshToken(httpServletRequest);
+        AuthService.LoginResult loginResult = authService.refresh(refreshToken);
+        return buildTokenResponse(loginResult);
+    }
+
+    private ResponseEntity<Result<LoginResponse>> buildTokenResponse(AuthService.LoginResult loginResult) {
         ResponseCookie refreshCookie = ResponseCookie.from(
-                jwtProperties.getRefreshCookieName(),
-                loginResult.refreshToken()
-            )
+            jwtProperties.getRefreshCookieName(),
+            loginResult.refreshToken()
+        )
             .httpOnly(true)
             .secure(false)
             .sameSite("Strict")
@@ -74,5 +91,20 @@ public class AuthController {
         }
 
         return request.getRemoteAddr();
+    }
+
+    private String extractRefreshToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        for (Cookie cookie : cookies) {
+            if (jwtProperties.getRefreshCookieName().equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+
+        return null;
     }
 }

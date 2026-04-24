@@ -121,6 +121,53 @@ public class AuthService {
         return new LoginResult(response, refreshToken);
     }
 
+    /**
+     * 使用 Refresh Token 刷新登录状态。
+     *
+     * @param refreshToken Refresh Token
+     * @return 刷新结果
+     */
+    @Transactional(readOnly = true)
+    public LoginResult refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
+
+        if (!jwtTokenProvider.isRefreshTokenValid(refreshToken)) {
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
+
+        AuthenticatedUser tokenUser = jwtTokenProvider.getAuthenticatedUserFromRefreshToken(refreshToken);
+        User user = userRepository.findById(tokenUser.getUserId())
+            .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_UNAUTHORIZED));
+
+        OffsetDateTime now = OffsetDateTime.now();
+
+        if (Boolean.FALSE.equals(user.getActive())) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "账号已停用");
+        }
+
+        if (isUserLocked(user, now)) {
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED, "账号已被锁定，请10分钟后再试");
+        }
+
+        AuthenticatedUser authenticatedUser = AuthenticatedUser.from(user);
+        String newAccessToken = jwtTokenProvider.generateAccessToken(authenticatedUser);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(authenticatedUser);
+
+        LoginResponse response = new LoginResponse(
+            newAccessToken,
+            "Bearer",
+            jwtProperties.getAccessTokenTtl().toSeconds(),
+            user.getId(),
+            user.getUsername(),
+            user.getRole(),
+            Boolean.TRUE.equals(user.getMustChangePassword())
+        );
+
+        return new LoginResult(response, newRefreshToken);
+    }
+
     private boolean isUserLocked(User user, OffsetDateTime now) {
         return user.getLockedUntil() != null && user.getLockedUntil().isAfter(now);
     }
