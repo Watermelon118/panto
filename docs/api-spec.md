@@ -17,6 +17,7 @@
 | `AUTH_ACCOUNT_LOCKED` | Account is temporarily locked |
 | `AUTH_UNAUTHORIZED` | Not logged in or token is invalid |
 | `AUTH_FORBIDDEN` | Current user is disabled or has no permission |
+| `CUSTOMER_NOT_FOUND` | Customer does not exist |
 | `PRODUCT_NOT_FOUND` | Product does not exist |
 | `PRODUCT_SKU_ALREADY_EXISTS` | Product SKU already exists |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
@@ -466,3 +467,184 @@ HTTP Status: `200 OK`
 #### Access Rules
 
 - Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+## Customer APIs
+
+### GET `/customers`
+
+Get paginated customers with optional filters.
+
+#### Query Parameters
+
+- `keyword`: optional, filters by company name or phone
+- `active`: optional, filters by active status
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "companyName": "Panto Trading Ltd",
+        "contactPerson": "Alex Chen",
+        "phone": "021888999",
+        "email": "alex@panto.co.nz",
+        "active": true
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `MARKETING`
+
+### GET `/customers/{id}`
+
+Get customer detail.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 1,
+    "companyName": "Panto Trading Ltd",
+    "contactPerson": "Alex Chen",
+    "phone": "021888999",
+    "email": "alex@panto.co.nz",
+    "address": "99 Queen Street",
+    "gstNumber": "GST-7788",
+    "remarks": "Preferred morning delivery",
+    "active": true,
+    "createdAt": "2026-04-25T08:00:00Z",
+    "updatedAt": "2026-04-25T10:30:00Z",
+    "createdBy": 1,
+    "updatedBy": 7
+  }
+}
+```
+
+#### Failure Responses
+
+Customer not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "CUSTOMER_NOT_FOUND",
+  "message": "客户不存在",
+  "data": null
+}
+```
+
+#### Notes
+
+- Milestone 2 currently returns customer base information only
+- Order history will be added when the order module is implemented
+
+#### Access Rules
+
+- Roles: `ADMIN`, `MARKETING`
+
+### POST `/customers`
+
+Create a customer.
+
+#### Request Body
+
+```json
+{
+  "companyName": "Panto Trading Ltd",
+  "contactPerson": "Alex Chen",
+  "phone": "021888999",
+  "email": "alex@panto.co.nz",
+  "address": "99 Queen Street",
+  "gstNumber": "GST-7788",
+  "remarks": "Preferred morning delivery"
+}
+```
+
+#### Validation Rules
+
+- `companyName`: required, max length `200`
+- `contactPerson`: optional, max length `100`
+- `phone`: optional, max length `30`
+- `email`: optional, must be a valid email, max length `100`
+- `gstNumber`: optional, max length `20`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /customers/{id}`.
+
+#### Access Rules
+
+- Roles: `ADMIN`, `MARKETING`
+
+### PUT `/customers/{id}`
+
+Update a customer.
+
+#### Request Body
+
+Same as `POST /customers`.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /customers/{id}`.
+
+#### Failure Responses
+
+- `CUSTOMER_NOT_FOUND`
+
+#### Access Rules
+
+- Roles: `ADMIN`, `MARKETING`
+
+### PATCH `/customers/{id}/status`
+
+Enable or disable a customer.
+
+#### Request Body
+
+```json
+{
+  "active": false
+}
+```
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /customers/{id}`.
+
+#### Failure Responses
+
+- `CUSTOMER_NOT_FOUND`
+
+#### Access Rules
+
+- Roles: `ADMIN`, `MARKETING`
