@@ -17,6 +17,8 @@
 | `AUTH_ACCOUNT_LOCKED` | Account is temporarily locked |
 | `AUTH_UNAUTHORIZED` | Not logged in or token is invalid |
 | `AUTH_FORBIDDEN` | Current user is disabled or has no permission |
+| `USER_NOT_FOUND` | User does not exist |
+| `USER_USERNAME_ALREADY_EXISTS` | Username already taken |
 | `CUSTOMER_NOT_FOUND` | Customer does not exist |
 | `PRODUCT_NOT_FOUND` | Product does not exist |
 | `PRODUCT_SKU_ALREADY_EXISTS` | Product SKU already exists |
@@ -648,3 +650,210 @@ Response body structure is the same as `GET /customers/{id}`.
 #### Access Rules
 
 - Roles: `ADMIN`, `MARKETING`
+
+## User APIs
+
+> All User APIs require `ADMIN` role.
+
+### GET `/users`
+
+Get paginated user list.
+
+#### Query Parameters
+
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "username": "john.doe",
+        "fullName": "John Doe",
+        "email": "john@panto.co.nz",
+        "role": "WAREHOUSE",
+        "active": true,
+        "mustChangePassword": false
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### GET `/users/{id}`
+
+Get user detail.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 1,
+    "username": "john.doe",
+    "fullName": "John Doe",
+    "email": "john@panto.co.nz",
+    "role": "WAREHOUSE",
+    "active": true,
+    "mustChangePassword": false,
+    "lockedUntil": null,
+    "lastLoginAt": "2026-04-25T09:00:00Z",
+    "createdAt": "2026-04-25T08:00:00Z",
+    "updatedAt": "2026-04-25T10:30:00Z",
+    "createdBy": 1,
+    "updatedBy": 1
+  }
+}
+```
+
+#### Failure Responses
+
+User not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "USER_NOT_FOUND",
+  "message": "用户不存在",
+  "data": null
+}
+```
+
+### POST `/users`
+
+Create a user. The new user must change their password on first login.
+
+#### Request Body
+
+```json
+{
+  "username": "john.doe",
+  "password": "Password1",
+  "fullName": "John Doe",
+  "email": "john@panto.co.nz",
+  "role": "WAREHOUSE"
+}
+```
+
+#### Validation Rules
+
+- `username`: required, max length `50`
+- `password`: required, min length `8`, max length `100`, must contain at least one letter and one digit
+- `fullName`: required, max length `100`
+- `email`: optional, must be a valid email, max length `100`
+- `role`: required, one of `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /users/{id}`.
+
+#### Failure Responses
+
+Duplicate username:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "USER_USERNAME_ALREADY_EXISTS",
+  "message": "用户名已存在",
+  "data": null
+}
+```
+
+### PUT `/users/{id}`
+
+Update user profile. Username is not modifiable.
+
+#### Request Body
+
+```json
+{
+  "fullName": "John Smith",
+  "email": "john.smith@panto.co.nz",
+  "role": "ACCOUNTANT"
+}
+```
+
+#### Validation Rules
+
+- `fullName`: required, max length `100`
+- `email`: optional, must be a valid email, max length `100`
+- `role`: required, one of `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /users/{id}`.
+
+#### Failure Responses
+
+- `USER_NOT_FOUND`
+
+### PATCH `/users/{id}/status`
+
+Enable or disable a user. Disabling clears any active lock.
+
+#### Request Body
+
+```json
+{
+  "active": false
+}
+```
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /users/{id}`.
+
+#### Failure Responses
+
+- `USER_NOT_FOUND`
+
+### POST `/users/{id}/reset-password`
+
+Reset a user's password. Sets `mustChangePassword = true` and clears any active lock.
+
+#### Request Body
+
+```json
+{
+  "newPassword": "NewPass1"
+}
+```
+
+#### Validation Rules
+
+- `newPassword`: required, min length `8`, max length `100`, must contain at least one letter and one digit
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /users/{id}`.
+
+#### Failure Responses
+
+- `USER_NOT_FOUND`
