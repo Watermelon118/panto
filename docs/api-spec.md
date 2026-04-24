@@ -17,6 +17,8 @@
 | `AUTH_ACCOUNT_LOCKED` | Account is temporarily locked |
 | `AUTH_UNAUTHORIZED` | Not logged in or token is invalid |
 | `AUTH_FORBIDDEN` | Current user is disabled or has no permission |
+| `PRODUCT_NOT_FOUND` | Product does not exist |
+| `PRODUCT_SKU_ALREADY_EXISTS` | Product SKU already exists |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
 
 ## Auth APIs
@@ -212,3 +214,255 @@ HTTP Status: `400 Bad Request`
 - Refresh token is rotated on every successful refresh
 - Refresh flow re-checks current user status from database
 - If user is deleted, disabled, or locked, refresh request is rejected
+
+## Product APIs
+
+### GET `/products`
+
+Get paginated products with optional filters.
+
+#### Query Parameters
+
+- `keyword`: optional, filters by SKU or product name
+- `category`: optional, exact category match
+- `active`: optional, filters by active status
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "sku": "SKU-001",
+        "name": "Frozen Dumplings",
+        "category": "Frozen Food",
+        "unit": "carton",
+        "referencePurchasePrice": 12.50,
+        "referenceSalePrice": 18.80,
+        "safetyStock": 20,
+        "gstApplicable": true,
+        "active": true,
+        "currentStock": 36
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/products/{id}`
+
+Get product detail with current aggregated stock.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 1,
+    "sku": "SKU-001",
+    "name": "Frozen Dumplings",
+    "category": "Frozen Food",
+    "specification": "1kg x 10",
+    "unit": "carton",
+    "referencePurchasePrice": 12.50,
+    "referenceSalePrice": 18.80,
+    "safetyStock": 20,
+    "gstApplicable": true,
+    "active": true,
+    "currentStock": 36,
+    "createdAt": "2026-04-25T08:00:00Z",
+    "updatedAt": "2026-04-25T10:30:00Z",
+    "createdBy": 1,
+    "updatedBy": 7
+  }
+}
+```
+
+#### Failure Responses
+
+Product not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "PRODUCT_NOT_FOUND",
+  "message": "产品不存在",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### POST `/products`
+
+Create a product.
+
+#### Request Body
+
+```json
+{
+  "sku": "SKU-001",
+  "name": "Frozen Dumplings",
+  "category": "Frozen Food",
+  "specification": "1kg x 10",
+  "unit": "carton",
+  "referencePurchasePrice": 12.50,
+  "referenceSalePrice": 18.80,
+  "safetyStock": 20,
+  "gstApplicable": true
+}
+```
+
+#### Validation Rules
+
+- `sku`: required, max length `50`
+- `name`: required, max length `200`
+- `category`: required, max length `50`
+- `specification`: optional, max length `100`
+- `unit`: required, max length `20`
+- `referencePurchasePrice`: required, `>= 0`, scale `2`
+- `referenceSalePrice`: required, `>= 0`, scale `2`
+- `safetyStock`: required, `>= 0`
+- `gstApplicable`: required
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /products/{id}`.
+
+#### Failure Responses
+
+Duplicate SKU:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "PRODUCT_SKU_ALREADY_EXISTS",
+  "message": "产品 SKU 已存在",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
+
+### PUT `/products/{id}`
+
+Update a product.
+
+#### Request Body
+
+Same as `POST /products`.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /products/{id}`.
+
+#### Failure Responses
+
+- `PRODUCT_NOT_FOUND`
+- `PRODUCT_SKU_ALREADY_EXISTS`
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
+
+### PATCH `/products/{id}/status`
+
+Enable or disable a product.
+
+#### Request Body
+
+```json
+{
+  "active": false
+}
+```
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /products/{id}`.
+
+#### Failure Responses
+
+- `PRODUCT_NOT_FOUND`
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
+
+### GET `/products/categories`
+
+Get active product categories for dropdown options.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": [
+    "Frozen Food",
+    "Snacks"
+  ]
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/products/units`
+
+Get active product units for dropdown options.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": [
+    "box",
+    "carton"
+  ]
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
