@@ -13,3 +13,13 @@ spring:
 
 server:
   port: 8080
+
+panto:
+  jwt:
+    issuer: "panto-api"
+    # 这里只放本地开发占位值，后续上线前需要改成真正的高强度密钥
+    access-token-secret: "local-dev-access-token-secret-please-change-before-production"
+    refresh-token-secret: "local-dev-refresh-token-secret-please-change-before-production"
+    access-token-ttl: "PT2H"
+    refresh-token-ttl: "P7D"
+    refresh-cookie-name: "refresh_token"
