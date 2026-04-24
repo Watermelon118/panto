@@ -97,6 +97,13 @@ panto/
 5. For any DB schema change, create a Flyway migration file.
 6. For any new REST endpoint, update docs/api-spec.md.
 
+### Collaboration Preferences
+- 进行任何写操作前，先告诉用户将要修改什么，并等待确认。
+- 默认按文件逐个修改代码，除非用户明确同意一次改多个文件。
+- 每改完一个文件，都要说明该文件新增、删除或修改了哪些内容。
+- 默认使用中文注释，并保留现有中文注释为中文，除非用户明确要求改成别的语言。
+- 不要主动创建分支、提交 commit 或合并分支，除非用户明确要求。
+
 ## Domain Terminology
 - SKU: Stock Keeping Unit
 - Batch: same inbound shipment group, has expiry date
