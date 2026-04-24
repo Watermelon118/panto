@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw *)",
+      "Bash(mvn *)",
+      "Bash(npm install)",
+      "Bash(npm run *)",
+      "Bash(npm test)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(docker-compose *)",
+      "Bash(docker ps *)",
+      "Read(*)",
+      "Edit(panto-api/src/**)",
+      "Edit(panto-web/src/**)",
+      "Edit(docs/**)",
+      "Write(panto-api/src/**)",
+      "Write(panto-web/src/**)",
+      "Write(docs/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push *)",
+      "Bash(git reset --hard *)",
+      "Bash(git commit *)",
+      "Write(.env*)",
+      "Write(**/application.yml)",
+      "Write(docker-compose.yml)",
+      "Write(.github/**)"
+    ]
+  }
+}

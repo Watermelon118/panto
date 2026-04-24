@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: "jdbc:postgresql://127.0.0.1:5432/panto"
+    username: "panto"
+    password: "panto123"
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  flyway:
+    enabled: false
+
+server:
+  port: 8080
