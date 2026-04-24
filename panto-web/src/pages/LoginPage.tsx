@@ -1,4 +1,29 @@
-export function LoginPage() {
+import type { FormEvent } from 'react';
+
+interface LoginPageProps {
+  username: string;
+  password: string;
+  errorMessage: string | null;
+  isSubmitting: boolean;
+  onUsernameChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onSubmit: () => void | Promise<void>;
+}
+
+export function LoginPage({
+  username,
+  password,
+  errorMessage,
+  isSubmitting,
+  onUsernameChange,
+  onPasswordChange,
+  onSubmit,
+}: LoginPageProps) {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void onSubmit();
+  };
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#f4ede2_0%,_#efe4d4_32%,_#dcc5a3_100%)] px-6 py-10 text-stone-900">
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
@@ -65,13 +90,17 @@ export function LoginPage() {
             </p>
           </div>
 
-          <form className="mt-8 space-y-5">
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <label className="block space-y-2">
               <span className="text-sm font-medium text-stone-700">Username</span>
               <input
                 className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-900 outline-none transition focus:border-amber-700 focus:ring-4 focus:ring-amber-200"
                 placeholder="Enter your username"
                 type="text"
+                value={username}
+                onChange={(event) => onUsernameChange(event.target.value)}
+                disabled={isSubmitting}
+                autoComplete="username"
               />
             </label>
 
@@ -81,14 +110,25 @@ export function LoginPage() {
                 className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-900 outline-none transition focus:border-amber-700 focus:ring-4 focus:ring-amber-200"
                 placeholder="Enter your password"
                 type="password"
+                value={password}
+                onChange={(event) => onPasswordChange(event.target.value)}
+                disabled={isSubmitting}
+                autoComplete="current-password"
               />
             </label>
 
+            {errorMessage ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            ) : null}
+
             <button
-              className="w-full rounded-2xl bg-stone-900 px-4 py-3 text-base font-semibold text-white transition hover:bg-stone-800"
-              type="button"
+              className="w-full rounded-2xl bg-stone-900 px-4 py-3 text-base font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-500"
+              type="submit"
+              disabled={isSubmitting}
             >
-              Sign In to Panto
+              {isSubmitting ? 'Signing In...' : 'Sign In to Panto'}
             </button>
           </form>
 
