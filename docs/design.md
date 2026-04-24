@@ -3,7 +3,7 @@ markdown# Panto — Design Document
 **Project**: Panto, a food warehouse management system  
 **Author**: Louis Wang (Shuaijie Wang)  
 **Created**: 2026-04-24  
-**Last Updated**: 2026-04-24  
+**Last Updated**: 2026-04-25  
 **Status**: Draft  
 
 ---
@@ -12,7 +12,8 @@ markdown# Panto — Design Document
 
 | Version | Date       | Author | Changes                                  |
 |---------|------------|--------|------------------------------------------|
-| 0.1     | 2026-04-24 | Louis  | Initial draft — Architecture section     |
+| 0.1     | 2026-04-24 | Louis  | Initial draft – Architecture section     |
+| 0.2     | 2026-04-25 | Louis  | Align tech stack versions with current repository |
 
 ---
 
@@ -111,7 +112,7 @@ The following diagram shows the request flow:
                             |
                             v
 +-------------------------------------------------------------+
-|                  panto-api (Spring Boot 3)                  |
+|                panto-api (Spring Boot 3.5.x)                |
 |                                                             |
 |   Security Filter Chain    (JWT validation + RBAC)          |
 |   Controller layer         (REST endpoints)                 |
@@ -712,8 +713,8 @@ Operator submits form (quantity + reason) → deduct batch quantity → write in
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Backend language | Java 17 | Production experience; strong typing catches errors at compile time |
-| Backend framework | Spring Boot 3 | Industry standard in NZ market; auto-configuration reduces boilerplate |
+| Backend language | Java 21 | Current project baseline; modern LTS with strong typing and good Spring Boot support |
+| Backend framework | Spring Boot 3.5.x | Current repository version; mature ecosystem with strong auto-configuration |
 | Security | Spring Security 6 + JWT | Native RBAC support; stateless JWT fits single-page app architecture |
 | ORM | Spring Data JPA + Hibernate | Reduces SQL boilerplate; `@Version` gives optimistic locking for free |
 | Database | PostgreSQL 15 | JSONB for audit log; `pg_trgm` for fuzzy search; partial indexes; better than MySQL for this use case |
@@ -722,7 +723,8 @@ Operator submits form (quantity + reason) → deduct batch quantity → write in
 | Audit logging | AOP + `@Auditable` | Cross-cutting concern stays out of business code |
 | Excel export | Apache POI | Standard Java library for Excel generation |
 | PDF generation | OpenPDF | Invoice PDF generation; open-source iText fork |
-| Frontend framework | React 18 + TypeScript | Type safety reduces runtime bugs; large NZ job market demand |
+| Frontend framework | React 19 + TypeScript 6 | Matches current frontend scaffold while preserving type safety and modern React tooling |
+| Frontend routing | React Router 7 | Matches current frontend dependency version and supports protected-route structure for auth |
 | Build tool | Vite | Fast dev server; significantly faster than CRA |
 | Server state | TanStack Query | Caching, background refresh, loading/error states out of the box |
 | Client state | Zustand | Lightweight; avoids Redux boilerplate for small client state |
@@ -771,8 +773,8 @@ Estimated 6 weeks for MVP, working solo with AI assistance.
 
 | Milestone | Weeks | Deliverables |
 |-----------|-------|--------------|
-| M1 — Foundation | 1 | Project scaffold, Docker Compose, Flyway schema, JWT auth, RBAC, login page |
-| M2 — Master data | 2 | Products CRUD, customers CRUD, user management, basic frontend pages |
+| M1 — Foundation | 1 | Project scaffold, Docker Compose, Flyway schema, JWT auth, RBAC, default admin account, auth API foundation |
+| M2 — Master data | 2 | Frontend login page, auth flow integration, products CRUD, customers CRUD, user management, basic frontend pages |
 | M3 — Inventory | 3 | Inbound records, batch management, inventory queries, stock transaction log |
 | M4 — Sales | 4 | Shopping cart, FIFO order creation, optimistic lock, invoice PDF, order rollback |
 | M5 — Operations | 5 | Expiry scan (@Scheduled), batch destruction, dashboard, financial export (Excel) |
