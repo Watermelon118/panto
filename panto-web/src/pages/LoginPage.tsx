@@ -1,27 +1,38 @@
-import type { FormEvent } from 'react';
+import axios from 'axios';
+import { type FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/auth-store';
 
-interface LoginPageProps {
-  username: string;
-  password: string;
-  errorMessage: string | null;
-  isSubmitting: boolean;
-  onUsernameChange: (value: string) => void;
-  onPasswordChange: (value: string) => void;
-  onSubmit: () => void | Promise<void>;
+function resolveErrorMessage(error: unknown): string {
+  if (axios.isAxiosError<{ message?: string }>(error)) {
+    return error.response?.data?.message ?? 'Unable to sign in right now.';
+  }
+  return 'Unable to sign in right now.';
 }
 
-export function LoginPage({
-  username,
-  password,
-  errorMessage,
-  isSubmitting,
-  onUsernameChange,
-  onPasswordChange,
-  onSubmit,
-}: LoginPageProps) {
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+export function LoginPage() {
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void onSubmit();
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await login(username.trim(), password);
+      navigate('/dashboard', { replace: true });
+    } catch (error) {
+      setErrorMessage(resolveErrorMessage(error));
+      setPassword('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -98,7 +109,7 @@ export function LoginPage({
                 placeholder="Enter your username"
                 type="text"
                 value={username}
-                onChange={(event) => onUsernameChange(event.target.value)}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={isSubmitting}
                 autoComplete="username"
               />
@@ -111,7 +122,7 @@ export function LoginPage({
                 placeholder="Enter your password"
                 type="password"
                 value={password}
-                onChange={(event) => onPasswordChange(event.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 disabled={isSubmitting}
                 autoComplete="current-password"
               />
@@ -131,14 +142,6 @@ export function LoginPage({
               {isSubmitting ? 'Signing In...' : 'Sign In to Panto'}
             </button>
           </form>
-
-          <div className="mt-8 rounded-2xl bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
-            <p className="font-semibold">Current milestone note</p>
-            <p className="mt-1">
-              Frontend auth flow is being connected. This screen is the layout
-              foundation for the real login interaction.
-            </p>
-          </div>
         </section>
       </div>
     </main>
