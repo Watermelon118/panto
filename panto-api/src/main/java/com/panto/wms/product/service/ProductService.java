@@ -53,8 +53,8 @@ public class ProductService {
     public ProductPageResponse listProducts(String keyword, String category, Boolean active, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
         Page<Product> products = productRepository.search(
-            normalize(keyword),
-            normalize(category),
+            toLikePattern(keyword),
+            toLowerCaseValue(category),
             active,
             pageRequest
         );
@@ -293,6 +293,16 @@ public class ProductService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String toLikePattern(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : "%" + normalized.toLowerCase() + "%";
+    }
+
+    private String toLowerCaseValue(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : normalized.toLowerCase();
     }
 
     private String normalizeRequired(String value, String fieldName) {

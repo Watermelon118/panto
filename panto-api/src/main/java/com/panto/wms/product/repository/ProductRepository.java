@@ -43,15 +43,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("""
         select p
         from Product p
-        where (:keyword is null
-            or lower(p.sku) like lower(concat('%', :keyword, '%'))
-            or lower(p.name) like lower(concat('%', :keyword, '%')))
-          and (:category is null or lower(p.category) = lower(:category))
+        where (:keywordPattern is null
+            or lower(p.sku) like :keywordPattern
+            or lower(p.name) like :keywordPattern)
+          and (:categoryNormalized is null or lower(p.category) = :categoryNormalized)
           and (:active is null or p.active = :active)
         """)
     Page<Product> search(
-        @Param("keyword") String keyword,
-        @Param("category") String category,
+        @Param("keywordPattern") String keywordPattern,
+        @Param("categoryNormalized") String categoryNormalized,
         @Param("active") Boolean active,
         Pageable pageable
     );

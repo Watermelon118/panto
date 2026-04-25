@@ -46,7 +46,7 @@ public class CustomerService {
     @Transactional(readOnly = true)
     public CustomerPageResponse listCustomers(String keyword, Boolean active, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
-        Page<Customer> customers = customerRepository.search(normalize(keyword), active, pageRequest);
+        Page<Customer> customers = customerRepository.search(toLikePattern(keyword), active, pageRequest);
 
         List<CustomerSummaryResponse> items = customers.getContent().stream()
             .map(this::toSummaryResponse)
@@ -209,6 +209,11 @@ public class CustomerService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String toLikePattern(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : "%" + normalized.toLowerCase() + "%";
     }
 
     private String normalizeRequired(String value, String fieldName) {

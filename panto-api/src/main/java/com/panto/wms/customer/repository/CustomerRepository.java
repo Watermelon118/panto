@@ -23,13 +23,13 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     @Query("""
         select c
         from Customer c
-        where (:keyword is null
-            or lower(c.companyName) like lower(concat('%', :keyword, '%'))
-            or lower(c.phone) like lower(concat('%', :keyword, '%')))
+        where (:keywordPattern is null
+            or lower(c.companyName) like :keywordPattern
+            or lower(c.phone) like :keywordPattern)
           and (:active is null or c.active = :active)
         """)
     Page<Customer> search(
-        @Param("keyword") String keyword,
+        @Param("keywordPattern") String keywordPattern,
         @Param("active") Boolean active,
         Pageable pageable
     );

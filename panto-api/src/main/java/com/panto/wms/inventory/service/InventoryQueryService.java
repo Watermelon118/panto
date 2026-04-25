@@ -65,7 +65,12 @@ public class InventoryQueryService {
     @Transactional(readOnly = true)
     public StockPageResponse getStockSummary(String keyword, String category, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("name").ascending());
-        Page<Product> products = productRepository.search(normalize(keyword), normalize(category), true, pageRequest);
+        Page<Product> products = productRepository.search(
+            toLikePattern(keyword),
+            toLowerCaseValue(category),
+            true,
+            pageRequest
+        );
 
         List<Long> productIds = products.getContent().stream().map(Product::getId).toList();
         Map<Long, Long> stockMap = loadStockMap(productIds);
@@ -274,5 +279,15 @@ public class InventoryQueryService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String toLikePattern(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : "%" + normalized.toLowerCase() + "%";
+    }
+
+    private String toLowerCaseValue(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : normalized.toLowerCase();
     }
 }
