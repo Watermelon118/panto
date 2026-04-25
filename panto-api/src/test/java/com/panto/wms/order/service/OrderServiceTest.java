@@ -22,6 +22,8 @@ import com.panto.wms.inventory.repository.InventoryTransactionRepository;
 import com.panto.wms.order.domain.OrderStatus;
 import com.panto.wms.order.dto.CreateOrderItemRequest;
 import com.panto.wms.order.dto.CreateOrderRequest;
+import com.panto.wms.order.dto.InvoiceResponse;
+import com.panto.wms.order.dto.OrderPageResponse;
 import com.panto.wms.order.dto.OrderResponse;
 import com.panto.wms.order.entity.Order;
 import com.panto.wms.order.entity.OrderItem;
@@ -41,6 +43,8 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /**
@@ -283,16 +287,198 @@ class OrderServiceTest {
         assertEquals(ErrorCode.ORDER_STOCK_CONFLICT, ex.getErrorCode());
     }
 
+    @Test
+    void listOrdersShouldReturnPagedSummariesWithCustomerAndItemCounts() {
+        Order order = buildOrder(700L, "ORD-20260425-001", OrderStatus.ACTIVE);
+        PageImpl<Order> page = new PageImpl<>(List.of(order), PageRequest.of(0, 20), 1);
+
+        when(orderRepository.search(null, null, null, null, PageRequest.of(0, 20))).thenReturn(page);
+        when(customerRepository.findAllById(List.of(CUSTOMER_ID))).thenReturn(List.of(buildActiveCustomer()));
+        when(orderItemRepository.findByOrderIdIn(List.of(700L))).thenReturn(List.of(
+            buildOrderItem(1700L, 700L, 100L, 5, new BigDecimal("100.00"), new BigDecimal("15.00")),
+            buildOrderItem(1701L, 700L, 101L, 7, new BigDecimal("140.00"), new BigDecimal("21.00"))
+        ));
+
+        OrderPageResponse response = orderService.listOrders(null, null, null, null, 0, 20);
+
+        assertEquals(1, response.items().size());
+        assertEquals("ORD-20260425-001", response.items().getFirst().orderNumber());
+        assertEquals("Fresh Dumplings Ltd", response.items().getFirst().customerCompanyName());
+        assertEquals(2, response.items().getFirst().itemCount());
+        assertEquals(new BigDecimal("276.00"), response.items().getFirst().totalAmount());
+    }
+
+    @Test
+    void getOrderShouldReturnDetailWithBatchInfo() {
+        Order order = buildOrder(701L, "ORD-20260425-002", OrderStatus.ACTIVE);
+        OrderItem firstItem = buildOrderItem(1800L, 701L, 100L, 5, new BigDecimal("100.00"), new BigDecimal("15.00"));
+        OrderItem secondItem = buildOrderItem(1801L, 701L, 101L, 7, new BigDecimal("140.00"), new BigDecimal("21.00"));
+        Batch firstBatch = buildBatch(100L, 5, LocalDate.now().plusDays(2), ExpiryStatus.EXPIRING_SOON);
+        Batch secondBatch = buildBatch(101L, 7, LocalDate.now().plusDays(6), ExpiryStatus.NORMAL);
+
+        when(orderRepository.findById(701L)).thenReturn(Optional.of(order));
+        when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(buildActiveCustomer()));
+        when(orderItemRepository.findByOrderIdOrderByIdAsc(701L)).thenReturn(List.of(firstItem, secondItem));
+        when(batchRepository.findAllById(List.of(100L, 101L))).thenReturn(List.of(firstBatch, secondBatch));
+
+        OrderResponse response = orderService.getOrder(701L);
+
+        assertEquals("ORD-20260425-002", response.orderNumber());
+        assertEquals(OrderStatus.ACTIVE, response.status());
+        assertEquals(2, response.items().size());
+        assertEquals("BATCH-001", response.items().getFirst().batchNumber());
+        assertEquals(ExpiryStatus.EXPIRING_SOON, response.items().getFirst().batchExpiryStatus());
+        assertEquals("BATCH-002", response.items().get(1).batchNumber());
+    }
+
+    @Test
+    void rollbackOrderShouldRestoreStockAndPersistRollbackTransactions() {
+        Order order = buildOrder(702L, "ORD-20260425-003", OrderStatus.ACTIVE);
+        OrderItem firstItem = buildOrderItem(1900L, 702L, 100L, 5, new BigDecimal("100.00"), new BigDecimal("15.00"));
+        OrderItem secondItem = buildOrderItem(1901L, 702L, 101L, 7, new BigDecimal("140.00"), new BigDecimal("21.00"));
+        Batch firstBatch = buildBatch(100L, 0, LocalDate.now().plusDays(2), ExpiryStatus.EXPIRING_SOON);
+        Batch secondBatch = buildBatch(101L, 3, LocalDate.now().plusDays(6), ExpiryStatus.NORMAL);
+
+        when(orderRepository.findById(702L)).thenReturn(Optional.of(order));
+        when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(buildActiveCustomer()));
+        when(orderItemRepository.findByOrderIdOrderByIdAsc(702L)).thenReturn(List.of(firstItem, secondItem));
+        when(batchRepository.findAllById(List.of(100L, 101L))).thenReturn(List.of(firstBatch, secondBatch));
+        when(batchRepository.save(any(Batch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(inventoryTransactionRepository.save(any(InventoryTransaction.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.rollbackOrder(702L, "Customer cancelled", OPERATOR_ID);
+
+        assertEquals(OrderStatus.ROLLED_BACK, response.status());
+        assertEquals(5, firstBatch.getQuantityRemaining());
+        assertEquals(10, secondBatch.getQuantityRemaining());
+
+        verify(orderRepository, times(1)).save(orderCaptor.capture());
+        Order savedOrder = orderCaptor.getValue();
+        assertEquals(OrderStatus.ROLLED_BACK, savedOrder.getStatus());
+        assertEquals("Customer cancelled", savedOrder.getRollbackReason());
+        assertEquals(OPERATOR_ID, savedOrder.getRolledBackBy());
+        assertNotNull(savedOrder.getRolledBackAt());
+
+        verify(inventoryTransactionRepository, times(2)).save(transactionCaptor.capture());
+        List<InventoryTransaction> rollbackTransactions = transactionCaptor.getAllValues();
+        assertEquals(TransactionType.ROLLBACK, rollbackTransactions.get(0).getTransactionType());
+        assertEquals(5, rollbackTransactions.get(0).getQuantityDelta());
+        assertEquals(0, rollbackTransactions.get(0).getQuantityBefore());
+        assertEquals(5, rollbackTransactions.get(0).getQuantityAfter());
+        assertEquals(7, rollbackTransactions.get(1).getQuantityDelta());
+        assertEquals(3, rollbackTransactions.get(1).getQuantityBefore());
+        assertEquals(10, rollbackTransactions.get(1).getQuantityAfter());
+
+        verify(batchRepository).flush();
+    }
+
+    @Test
+    void rollbackOrderShouldThrowWhenOrderAlreadyRolledBack() {
+        Order order = buildOrder(703L, "ORD-20260425-004", OrderStatus.ROLLED_BACK);
+        when(orderRepository.findById(703L)).thenReturn(Optional.of(order));
+
+        BusinessException ex = assertThrows(
+            BusinessException.class,
+            () -> orderService.rollbackOrder(703L, "Duplicate request", OPERATOR_ID)
+        );
+
+        assertEquals(ErrorCode.ORDER_ALREADY_ROLLED_BACK, ex.getErrorCode());
+        verify(orderItemRepository, never()).findByOrderIdOrderByIdAsc(any());
+    }
+
+    @Test
+    void getInvoiceShouldAggregateOrderItemsByProductSnapshot() {
+        Order order = buildOrder(704L, "ORD-20260425-005", OrderStatus.ACTIVE);
+        OrderItem firstItem = buildOrderItem(2000L, 704L, 100L, 5, new BigDecimal("100.00"), new BigDecimal("15.00"));
+        OrderItem secondItem = buildOrderItem(2001L, 704L, 101L, 7, new BigDecimal("140.00"), new BigDecimal("21.00"));
+
+        when(orderRepository.findById(704L)).thenReturn(Optional.of(order));
+        when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(buildActiveCustomer()));
+        when(orderItemRepository.findByOrderIdOrderByIdAsc(704L)).thenReturn(List.of(firstItem, secondItem));
+
+        InvoiceResponse response = orderService.getInvoice(704L);
+
+        assertEquals("ORD-20260425-005", response.invoiceNumber());
+        assertEquals(OrderStatus.ACTIVE, response.status());
+        assertEquals("Fresh Dumplings Ltd", response.customer().companyName());
+        assertEquals(1, response.items().size());
+        assertEquals(12, response.items().getFirst().quantity());
+        assertEquals(new BigDecimal("240.00"), response.items().getFirst().subtotal());
+        assertEquals(new BigDecimal("36.00"), response.items().getFirst().gstAmount());
+        assertEquals("Bank transfer", response.paymentInstructions());
+    }
+
+    @Test
+    void getOrderShouldThrowWhenOrderDoesNotExist() {
+        when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(
+            BusinessException.class,
+            () -> orderService.getOrder(999L)
+        );
+
+        assertEquals(ErrorCode.ORDER_NOT_FOUND, ex.getErrorCode());
+    }
+
     private Customer buildActiveCustomer() {
         Customer customer = new Customer();
         customer.setId(CUSTOMER_ID);
         customer.setCompanyName("Fresh Dumplings Ltd");
+        customer.setContactPerson("Alex Chen");
+        customer.setPhone("021888999");
+        customer.setAddress("99 Queen Street");
+        customer.setGstNumber("GST-7788");
         customer.setActive(true);
         customer.setCreatedAt(OffsetDateTime.now().minusDays(30));
         customer.setUpdatedAt(OffsetDateTime.now().minusDays(1));
         customer.setCreatedBy(OPERATOR_ID);
         customer.setUpdatedBy(OPERATOR_ID);
         return customer;
+    }
+
+    private Order buildOrder(Long id, String orderNumber, OrderStatus status) {
+        Order order = new Order();
+        order.setId(id);
+        order.setOrderNumber(orderNumber);
+        order.setCustomerId(CUSTOMER_ID);
+        order.setStatus(status);
+        order.setSubtotalAmount(new BigDecimal("240.00"));
+        order.setGstAmount(new BigDecimal("36.00"));
+        order.setTotalAmount(new BigDecimal("276.00"));
+        order.setRemarks("Deliver before noon");
+        order.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        order.setUpdatedAt(OffsetDateTime.now().minusDays(1));
+        order.setCreatedBy(OPERATOR_ID);
+        order.setUpdatedBy(OPERATOR_ID);
+        return order;
+    }
+
+    private OrderItem buildOrderItem(
+        Long id,
+        Long orderId,
+        Long batchId,
+        int quantity,
+        BigDecimal subtotal,
+        BigDecimal gstAmount
+    ) {
+        OrderItem orderItem = new OrderItem();
+        orderItem.setId(id);
+        orderItem.setOrderId(orderId);
+        orderItem.setProductId(PRODUCT_ID);
+        orderItem.setBatchId(batchId);
+        orderItem.setProductSkuSnapshot("DUMP001");
+        orderItem.setProductNameSnapshot("Frozen Dumplings");
+        orderItem.setProductUnitSnapshot("carton");
+        orderItem.setProductSpecSnapshot("1kg x 10");
+        orderItem.setQuantity(quantity);
+        orderItem.setUnitPrice(new BigDecimal("20.00"));
+        orderItem.setSubtotal(subtotal);
+        orderItem.setGstApplicable(true);
+        orderItem.setGstAmount(gstAmount);
+        orderItem.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        return orderItem;
     }
 
     private Product buildActiveProduct(boolean gstApplicable) {

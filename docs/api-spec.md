@@ -29,6 +29,8 @@
 | `ORDER_PRODUCT_NOT_FOUND` | A product referenced in the order does not exist |
 | `ORDER_PRODUCT_INACTIVE` | A product referenced in the order is inactive |
 | `ORDER_DUPLICATE_PRODUCT` | The order contains duplicate products |
+| `ORDER_NOT_FOUND` | Order does not exist |
+| `ORDER_ALREADY_ROLLED_BACK` | Order has already been rolled back |
 | `ORDER_INSUFFICIENT_STOCK` | Available stock is insufficient for the requested quantity |
 | `ORDER_STOCK_CONFLICT` | Stock changed concurrently; the order should be retried |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
@@ -1277,6 +1279,122 @@ HTTP Status: `400 Bad Request`
 
 ## Order APIs
 
+### GET `/orders`
+
+Get paginated orders with optional customer, date, and status filters.
+
+#### Query Parameters
+
+- `customerId`: optional, filters by customer
+- `dateFrom`: optional, format `yyyy-MM-dd`, filters orders created on or after this date
+- `dateTo`: optional, format `yyyy-MM-dd`, filters orders created on or before this date
+- `status`: optional, one of `ACTIVE`, `ROLLED_BACK`
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 500,
+        "orderNumber": "ORD-20260425-001",
+        "customerId": 1,
+        "customerCompanyName": "Fresh Dumplings Ltd",
+        "status": "ACTIVE",
+        "itemCount": 2,
+        "subtotalAmount": 240.00,
+        "gstAmount": 36.00,
+        "totalAmount": 276.00,
+        "createdAt": "2026-04-25T10:00:00Z",
+        "createdBy": 1
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`
+
+### GET `/orders/{id}`
+
+Get full order detail including persisted batch-level order items.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 500,
+    "orderNumber": "ORD-20260425-001",
+    "customerId": 1,
+    "customerCompanyName": "Fresh Dumplings Ltd",
+    "status": "ACTIVE",
+    "subtotalAmount": 240.00,
+    "gstAmount": 36.00,
+    "totalAmount": 276.00,
+    "remarks": "Deliver before noon",
+    "items": [
+      {
+        "id": 1100,
+        "productId": 5,
+        "batchId": 100,
+        "batchNumber": "DUMP001-20260420-001",
+        "batchExpiryDate": "2026-05-01",
+        "batchExpiryStatus": "EXPIRING_SOON",
+        "productSku": "DUMP001",
+        "productName": "Frozen Dumplings",
+        "productUnit": "carton",
+        "productSpecification": "1kg x 10",
+        "quantity": 5,
+        "unitPrice": 20.00,
+        "subtotal": 100.00,
+        "gstApplicable": true,
+        "gstAmount": 15.00
+      }
+    ],
+    "createdAt": "2026-04-25T10:00:00Z",
+    "updatedAt": "2026-04-25T10:00:00Z",
+    "createdBy": 1,
+    "updatedBy": 1
+  }
+}
+```
+
+#### Failure Responses
+
+Order not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_NOT_FOUND",
+  "message": "订单不存在",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`
+
 ### POST `/orders`
 
 Create a sales order. Stock is deducted by FIFO order using batches sorted by expiry date ascending.
@@ -1449,6 +1567,147 @@ HTTP Status: `400 Bad Request`
 {
   "code": "ORDER_STOCK_CONFLICT",
   "message": "库存已被其他操作更新，请重试",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`
+
+### POST `/orders/{id}/rollback`
+
+Rollback an order. The order status is changed to `ROLLED_BACK` and stock is returned to the original deducted batches.
+
+#### Request Body
+
+```json
+{
+  "reason": "Customer cancelled"
+}
+```
+
+#### Validation Rules
+
+- `reason`: required, cannot be blank, max length `1000`
+
+#### Business Rules
+
+- Only active orders can be rolled back
+- Stock is restored to the exact original batches recorded in `order_items`
+- One `ROLLBACK` inventory transaction is written per restored order item
+- The original order row is retained and updated to `ROLLED_BACK`
+- Batch optimistic locking failures are translated to `ORDER_STOCK_CONFLICT`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /orders/{id}`, except `status` becomes `ROLLED_BACK`.
+
+#### Failure Responses
+
+Order not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_NOT_FOUND",
+  "message": "订单不存在",
+  "data": null
+}
+```
+
+Order already rolled back:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_ALREADY_ROLLED_BACK",
+  "message": "订单已回滚，不能重复操作",
+  "data": null
+}
+```
+
+Concurrent stock conflict:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_STOCK_CONFLICT",
+  "message": "库存已被其他操作更新，请重试",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`
+
+### GET `/orders/{id}/invoice`
+
+Get invoice-ready order data for print or PDF rendering.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "orderId": 500,
+    "invoiceNumber": "ORD-20260425-001",
+    "invoiceDate": "2026-04-25T10:00:00Z",
+    "status": "ACTIVE",
+    "customer": {
+      "companyName": "Fresh Dumplings Ltd",
+      "contactPerson": "Alex Chen",
+      "phone": "021888999",
+      "address": "99 Queen Street",
+      "gstNumber": "GST-7788"
+    },
+    "items": [
+      {
+        "productSku": "DUMP001",
+        "productName": "Frozen Dumplings",
+        "productSpecification": "1kg x 10",
+        "productUnit": "carton",
+        "quantity": 12,
+        "unitPrice": 20.00,
+        "subtotal": 240.00,
+        "gstApplicable": true,
+        "gstAmount": 36.00
+      }
+    ],
+    "subtotalAmount": 240.00,
+    "gstAmount": 36.00,
+    "totalAmount": 276.00,
+    "remarks": "Deliver before noon",
+    "paymentInstructions": "Bank transfer"
+  }
+}
+```
+
+#### Notes
+
+- Invoice lines are aggregated by product snapshot + unit price, even if the actual stock deduction used multiple batches
+- `invoiceNumber` currently reuses `orderNumber`
+
+#### Failure Responses
+
+Order not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_NOT_FOUND",
+  "message": "订单不存在",
   "data": null
 }
 ```
