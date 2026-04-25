@@ -133,7 +133,7 @@ public class OrderService {
             customerId,
             toStartOfDay(dateFrom),
             toStartOfNextDay(dateTo),
-            status,
+            status != null ? status.name() : null,
             pageRequest
         );
 

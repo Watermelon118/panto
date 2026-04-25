@@ -33,19 +33,43 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * @param pageable 分页参数
      * @return 订单分页结果
      */
-    @Query("""
-        select o from Order o
-        where (:customerId is null or o.customerId = :customerId)
-          and (:createdAtFrom is null or o.createdAt >= :createdAtFrom)
-          and (:createdAtTo is null or o.createdAt < :createdAtTo)
-          and (:#{#status} is null or o.status = :status)
-        order by o.createdAt desc, o.id desc
-        """)
+    @Query(
+        value = """
+            select *
+            from orders o
+            where (cast(:customerId as bigint) is null or o.customer_id = cast(:customerId as bigint))
+              and (
+                    cast(:createdAtFrom as timestamptz) is null
+                    or o.created_at >= cast(:createdAtFrom as timestamptz)
+                  )
+              and (
+                    cast(:createdAtTo as timestamptz) is null
+                    or o.created_at < cast(:createdAtTo as timestamptz)
+                  )
+              and (cast(:status as varchar) is null or o.status = cast(:status as varchar))
+            order by o.created_at desc, o.id desc
+            """,
+        countQuery = """
+            select count(*)
+            from orders o
+            where (cast(:customerId as bigint) is null or o.customer_id = cast(:customerId as bigint))
+              and (
+                    cast(:createdAtFrom as timestamptz) is null
+                    or o.created_at >= cast(:createdAtFrom as timestamptz)
+                  )
+              and (
+                    cast(:createdAtTo as timestamptz) is null
+                    or o.created_at < cast(:createdAtTo as timestamptz)
+                  )
+              and (cast(:status as varchar) is null or o.status = cast(:status as varchar))
+            """,
+        nativeQuery = true
+    )
     Page<Order> search(
         @Param("customerId") Long customerId,
         @Param("createdAtFrom") OffsetDateTime createdAtFrom,
         @Param("createdAtTo") OffsetDateTime createdAtTo,
-        @Param("status") OrderStatus status,
+        @Param("status") String status,
         Pageable pageable
     );
 }

@@ -309,6 +309,18 @@ class OrderServiceTest {
     }
 
     @Test
+    void listOrdersShouldPassStatusNameToRepository() {
+        PageImpl<Order> page = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+
+        when(orderRepository.search(null, null, null, "ACTIVE", PageRequest.of(0, 20))).thenReturn(page);
+
+        OrderPageResponse response = orderService.listOrders(null, null, null, OrderStatus.ACTIVE, 0, 20);
+
+        assertEquals(0, response.items().size());
+        verify(orderRepository).search(null, null, null, "ACTIVE", PageRequest.of(0, 20));
+    }
+
+    @Test
     void getOrderShouldReturnDetailWithBatchInfo() {
         Order order = buildOrder(701L, "ORD-20260425-002", OrderStatus.ACTIVE);
         OrderItem firstItem = buildOrderItem(1800L, 701L, 100L, 5, new BigDecimal("100.00"), new BigDecimal("15.00"));
