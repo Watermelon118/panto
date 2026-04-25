@@ -22,6 +22,9 @@
 | `CUSTOMER_NOT_FOUND` | Customer does not exist |
 | `PRODUCT_NOT_FOUND` | Product does not exist |
 | `PRODUCT_SKU_ALREADY_EXISTS` | Product SKU already exists |
+| `INBOUND_NOT_FOUND` | Inbound record does not exist |
+| `INBOUND_PRODUCT_NOT_FOUND` | A product referenced in the inbound items does not exist |
+| `INBOUND_HAS_STOCK_MOVEMENT` | Inbound record cannot be modified because stock has already been consumed |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
 
 ## Auth APIs
@@ -831,6 +834,218 @@ Response body structure is the same as `GET /users/{id}`.
 #### Failure Responses
 
 - `USER_NOT_FOUND`
+
+## Inbound APIs
+
+### GET `/inbound`
+
+Get paginated inbound records with optional filters.
+
+#### Query Parameters
+
+- `dateFrom`: optional, format `yyyy-MM-dd`, filters records on or after this date
+- `dateTo`: optional, format `yyyy-MM-dd`, filters records on or before this date
+- `productId`: optional, filters records that contain the specified product
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "inboundNumber": "IN-20250425-001",
+        "inboundDate": "2025-04-25",
+        "itemCount": 3,
+        "remarks": "April stock replenishment",
+        "createdAt": "2025-04-25T08:00:00Z",
+        "createdBy": 1
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/inbound/{id}`
+
+Get inbound record detail including all line items.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 1,
+    "inboundNumber": "IN-20250425-001",
+    "inboundDate": "2025-04-25",
+    "remarks": "April stock replenishment",
+    "items": [
+      {
+        "id": 10,
+        "productId": 5,
+        "productSku": "APPLE001",
+        "productName": "Green Apple",
+        "batchNumber": "APPLE001-20250425-001",
+        "expiryDate": "2025-10-25",
+        "quantity": 100,
+        "purchaseUnitPrice": 2.50,
+        "remarks": null
+      }
+    ],
+    "createdAt": "2025-04-25T08:00:00Z",
+    "updatedAt": "2025-04-25T08:00:00Z",
+    "createdBy": 1,
+    "updatedBy": 1
+  }
+}
+```
+
+#### Failure Responses
+
+Inbound record not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "INBOUND_NOT_FOUND",
+  "message": "入库单不存在",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### POST `/inbound`
+
+Create an inbound record. Automatically generates:
+- Inbound number in format `IN-YYYYMMDD-NNN`
+- Batch number per item in format `{SKU}-YYYYMMDD-NNN`
+- One `Batch` record per line item
+- One `IN` inventory transaction per batch
+
+#### Request Body
+
+```json
+{
+  "inboundDate": "2025-04-25",
+  "remarks": "April stock replenishment",
+  "items": [
+    {
+      "productId": 5,
+      "expiryDate": "2025-10-25",
+      "quantity": 100,
+      "purchaseUnitPrice": 2.50,
+      "remarks": null
+    }
+  ]
+}
+```
+
+#### Validation Rules
+
+- `inboundDate`: required
+- `remarks`: optional, max length `1000`
+- `items`: required, min `1` item
+- `items[].productId`: required, must reference an existing active product
+- `items[].expiryDate`: required
+- `items[].quantity`: required, `>= 1`
+- `items[].purchaseUnitPrice`: required, `>= 0`, scale `2`
+- `items[].remarks`: optional, max length `500`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /inbound/{id}`.
+
+#### Failure Responses
+
+Product not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "INBOUND_PRODUCT_NOT_FOUND",
+  "message": "入库明细中包含不存在的产品",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
+
+### PUT `/inbound/{id}`
+
+Update an inbound record. Only allowed if no stock from any batch of this record has been consumed. On success, all existing items, batches, and `IN` transactions are deleted and recreated from the new request.
+
+#### Request Body
+
+Same as `POST /inbound`.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /inbound/{id}`.
+
+#### Failure Responses
+
+Inbound record not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "INBOUND_NOT_FOUND",
+  "message": "入库单不存在",
+  "data": null
+}
+```
+
+Stock already consumed:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "INBOUND_HAS_STOCK_MOVEMENT",
+  "message": "该入库单已有库存被使用，无法修改",
+  "data": null
+}
+```
+
+#### Notes
+
+- If any batch derived from this inbound has `quantity_remaining < quantity_received`, the update is rejected
+- Batch numbers are regenerated from the new request data
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
 
 ### POST `/users/{id}/reset-password`
 
