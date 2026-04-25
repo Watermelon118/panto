@@ -25,6 +25,12 @@
 | `INBOUND_NOT_FOUND` | Inbound record does not exist |
 | `INBOUND_PRODUCT_NOT_FOUND` | A product referenced in the inbound items does not exist |
 | `INBOUND_HAS_STOCK_MOVEMENT` | Inbound record cannot be modified because stock has already been consumed |
+| `ORDER_CUSTOMER_NOT_FOUND` | Customer does not exist or is inactive |
+| `ORDER_PRODUCT_NOT_FOUND` | A product referenced in the order does not exist |
+| `ORDER_PRODUCT_INACTIVE` | A product referenced in the order is inactive |
+| `ORDER_DUPLICATE_PRODUCT` | The order contains duplicate products |
+| `ORDER_INSUFFICIENT_STOCK` | Available stock is insufficient for the requested quantity |
+| `ORDER_STOCK_CONFLICT` | Stock changed concurrently; the order should be retried |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
 
 ## Auth APIs
@@ -1268,6 +1274,188 @@ HTTP Status: `400 Bad Request`
 #### Access Rules
 
 - Roles: `ADMIN`, `WAREHOUSE`
+
+## Order APIs
+
+### POST `/orders`
+
+Create a sales order. Stock is deducted by FIFO order using batches sorted by expiry date ascending.
+
+#### Request Body
+
+```json
+{
+  "customerId": 1,
+  "remarks": "Deliver before noon",
+  "items": [
+    {
+      "productId": 5,
+      "quantity": 12,
+      "unitPrice": 20.00
+    }
+  ]
+}
+```
+
+#### Validation Rules
+
+- `customerId`: required, must reference an active customer
+- `remarks`: optional, max length `1000`
+- `items`: required, min `1` item
+- `items[].productId`: required, must reference an existing active product
+- `items[].quantity`: required, `>= 1`
+- `items[].unitPrice`: optional, `>= 0`, scale `2`; defaults to the product reference sale price when omitted
+- The same product cannot appear more than once in `items`
+
+#### Business Rules
+
+- Available inventory is checked before the order is persisted
+- Batch deduction uses FIFO by `expiry_date ASC`
+- If one batch is not enough, one request line may be split into multiple persisted `order_items`
+- `order_items` store product snapshot fields so historical order data remains stable after product edits
+- GST is calculated per persisted order item and then summed at order level
+- Expiring or expired stock is still eligible for sale; warning display is handled by the frontend
+- Batch optimistic locking failures are translated to `ORDER_STOCK_CONFLICT`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 500,
+    "orderNumber": "ORD-20260425-001",
+    "customerId": 1,
+    "customerCompanyName": "Fresh Dumplings Ltd",
+    "status": "ACTIVE",
+    "subtotalAmount": 240.00,
+    "gstAmount": 36.00,
+    "totalAmount": 276.00,
+    "remarks": "Deliver before noon",
+    "items": [
+      {
+        "id": 1100,
+        "productId": 5,
+        "batchId": 100,
+        "batchNumber": "DUMP001-20260420-001",
+        "batchExpiryDate": "2026-05-01",
+        "batchExpiryStatus": "EXPIRING_SOON",
+        "productSku": "DUMP001",
+        "productName": "Frozen Dumplings",
+        "productUnit": "carton",
+        "productSpecification": "1kg x 10",
+        "quantity": 5,
+        "unitPrice": 20.00,
+        "subtotal": 100.00,
+        "gstApplicable": true,
+        "gstAmount": 15.00
+      },
+      {
+        "id": 1101,
+        "productId": 5,
+        "batchId": 101,
+        "batchNumber": "DUMP001-20260421-001",
+        "batchExpiryDate": "2026-05-07",
+        "batchExpiryStatus": "NORMAL",
+        "productSku": "DUMP001",
+        "productName": "Frozen Dumplings",
+        "productUnit": "carton",
+        "productSpecification": "1kg x 10",
+        "quantity": 7,
+        "unitPrice": 20.00,
+        "subtotal": 140.00,
+        "gstApplicable": true,
+        "gstAmount": 21.00
+      }
+    ],
+    "createdAt": "2026-04-25T10:00:00Z",
+    "updatedAt": "2026-04-25T10:00:00Z",
+    "createdBy": 1,
+    "updatedBy": 1
+  }
+}
+```
+
+#### Failure Responses
+
+Customer not found or inactive:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_CUSTOMER_NOT_FOUND",
+  "message": "客户不存在或已停用",
+  "data": null
+}
+```
+
+Product not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_PRODUCT_NOT_FOUND",
+  "message": "订单中包含不存在的商品",
+  "data": null
+}
+```
+
+Product inactive:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_PRODUCT_INACTIVE",
+  "message": "订单中包含已停用的商品",
+  "data": null
+}
+```
+
+Duplicate product lines:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_DUPLICATE_PRODUCT",
+  "message": "订单中存在重复商品，请合并后再提交",
+  "data": null
+}
+```
+
+Insufficient stock:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_INSUFFICIENT_STOCK",
+  "message": "库存不足，无法创建订单",
+  "data": null
+}
+```
+
+Concurrent stock conflict:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "ORDER_STOCK_CONFLICT",
+  "message": "库存已被其他操作更新，请重试",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`
 
 ### POST `/users/{id}/reset-password`
 
