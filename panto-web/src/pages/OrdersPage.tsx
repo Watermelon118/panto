@@ -122,8 +122,7 @@ export function OrdersPage() {
 
       {customersQuery.error && (
         <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-5 py-4 text-sm leading-6 text-amber-100">
-          Customer options are unavailable for the current role. Order creation currently depends on the backend
-          customer list permission.
+          Customer filter options are temporarily unavailable. You can still review orders and try refreshing the page.
         </div>
       )}
 

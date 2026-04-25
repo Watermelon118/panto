@@ -523,7 +523,7 @@ HTTP Status: `200 OK`
 
 #### Access Rules
 
-- Roles: `ADMIN`, `MARKETING`
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`
 
 ### GET `/customers/{id}`
 

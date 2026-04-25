@@ -53,7 +53,7 @@ public class CustomerController {
      * @return 分页客户列表
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MARKETING')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'MARKETING')")
     public Result<CustomerPageResponse> listCustomers(
         @RequestParam(required = false) String keyword,
         @RequestParam(required = false) Boolean active,

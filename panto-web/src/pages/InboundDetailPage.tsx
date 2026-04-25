@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInbound, useUpdateInbound } from '../api/inbound';
 import { useProducts } from '../api/products';
@@ -36,21 +36,23 @@ export function InboundDetailPage() {
   const [items, setItems] = useState<InboundItemRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (record) {
-      setInboundDate(record.inboundDate);
-      setRemarks(record.remarks ?? '');
-      setItems(
-        record.items.map((it) => ({
-          productId: it.productId,
-          expiryDate: it.expiryDate,
-          quantity: it.quantity,
-          purchaseUnitPrice: it.purchaseUnitPrice,
-          remarks: it.remarks ?? '',
-        })),
-      );
+  const resetFormFromRecord = () => {
+    if (!record) {
+      return;
     }
-  }, [record]);
+
+    setInboundDate(record.inboundDate);
+    setRemarks(record.remarks ?? '');
+    setItems(
+      record.items.map((it) => ({
+        productId: it.productId,
+        expiryDate: it.expiryDate,
+        quantity: it.quantity,
+        purchaseUnitPrice: it.purchaseUnitPrice,
+        remarks: it.remarks ?? '',
+      })),
+    );
+  };
 
   const updateItem = <K extends keyof InboundItemRequest>(
     index: number,
@@ -88,19 +90,7 @@ export function InboundDetailPage() {
   };
 
   const handleCancelEdit = () => {
-    if (record) {
-      setInboundDate(record.inboundDate);
-      setRemarks(record.remarks ?? '');
-      setItems(
-        record.items.map((it) => ({
-          productId: it.productId,
-          expiryDate: it.expiryDate,
-          quantity: it.quantity,
-          purchaseUnitPrice: it.purchaseUnitPrice,
-          remarks: it.remarks ?? '',
-        })),
-      );
-    }
+    resetFormFromRecord();
     setError(null);
     setEditing(false);
   };
@@ -148,7 +138,11 @@ export function InboundDetailPage() {
         {!editing && (
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              resetFormFromRecord();
+              setError(null);
+              setEditing(true);
+            }}
             className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-stone-300 transition hover:bg-white/5 hover:text-stone-100"
           >
             Edit
