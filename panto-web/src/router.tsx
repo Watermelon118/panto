@@ -4,6 +4,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { InboundCreatePage } from './pages/InboundCreatePage';
+import { InboundDetailPage } from './pages/InboundDetailPage';
 import { InboundListPage } from './pages/InboundListPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProductsPage } from './pages/ProductsPage';
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
           { path: '/customers', element: <CustomersPage /> },
           { path: '/inbound', element: <InboundListPage /> },
           { path: '/inbound/new', element: <InboundCreatePage /> },
+          { path: '/inbound/:id', element: <InboundDetailPage /> },
           { path: '/users', element: <UsersPage /> },
         ],
       },
