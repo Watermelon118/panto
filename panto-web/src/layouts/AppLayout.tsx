@@ -13,6 +13,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/products', label: 'Products', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/customers', label: 'Customers', roles: ['ADMIN', 'MARKETING'] },
   { to: '/inbound', label: 'Inbound', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
+  { to: '/inventory/stock', label: 'Stock Summary', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
+  { to: '/inventory/batches', label: 'Batches', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
+  { to: '/inventory/transactions', label: 'Transactions', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/users', label: 'Users', roles: ['ADMIN'] },
 ];
 
