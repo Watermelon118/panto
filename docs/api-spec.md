@@ -654,6 +654,228 @@ Response body structure is the same as `GET /customers/{id}`.
 
 - Roles: `ADMIN`, `MARKETING`
 
+## Inventory APIs
+
+> All Inventory APIs require authentication. All roles have read access.
+
+### GET `/inventory`
+
+Get paginated current stock summary by product (active products only).
+
+#### Query Parameters
+
+- `keyword`: optional, filters by SKU or product name
+- `category`: optional, exact category match
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "productId": 5,
+        "sku": "APPLE001",
+        "name": "Green Apple",
+        "category": "Fruit",
+        "unit": "carton",
+        "safetyStock": 50,
+        "currentStock": 30,
+        "belowSafetyStock": true
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/inventory/batches`
+
+Get paginated batch list with optional filters.
+
+#### Query Parameters
+
+- `productId`: optional, filters by product
+- `expiryStatus`: optional, one of `NORMAL`, `EXPIRING_SOON`, `EXPIRED`
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 10,
+        "productId": 5,
+        "productSku": "APPLE001",
+        "productName": "Green Apple",
+        "batchNumber": "APPLE001-20250425-001",
+        "arrivalDate": "2025-04-25",
+        "expiryDate": "2025-10-25",
+        "quantityReceived": 100,
+        "quantityRemaining": 80,
+        "purchaseUnitPrice": 2.50,
+        "expiryStatus": "NORMAL",
+        "createdAt": "2025-04-25T08:00:00Z"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/inventory/transactions`
+
+Get paginated stock movement log, sorted by time descending.
+
+#### Query Parameters
+
+- `productId`: optional, filters by product
+- `transactionType`: optional, one of `IN`, `OUT`, `ROLLBACK`, `DESTROY`, `ADJUST`
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 100,
+        "batchId": 10,
+        "batchNumber": "APPLE001-20250425-001",
+        "productId": 5,
+        "productSku": "APPLE001",
+        "productName": "Green Apple",
+        "transactionType": "IN",
+        "quantityDelta": 100,
+        "quantityBefore": 0,
+        "quantityAfter": 100,
+        "relatedDocumentType": "INBOUND",
+        "relatedDocumentId": 1,
+        "note": "Goods received, inbound record #1",
+        "createdAt": "2025-04-25T08:00:00Z",
+        "createdBy": 1
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Notes
+
+- `quantityDelta` is positive for stock-in (`IN`, `ROLLBACK`, `ADJUST`+) and negative for stock-out (`OUT`, `DESTROY`, `ADJUST`-)
+- Records are append-only and cannot be modified
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/inventory/low-stock`
+
+Get all active products whose current stock is below their safety stock threshold, sorted by current stock ascending.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": [
+    {
+      "productId": 5,
+      "sku": "APPLE001",
+      "name": "Green Apple",
+      "category": "Fruit",
+      "unit": "carton",
+      "safetyStock": 50,
+      "currentStock": 10,
+      "belowSafetyStock": true
+    }
+  ]
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+### GET `/inventory/expiring`
+
+Get all batches with remaining stock that expire within the specified number of days, sorted by expiry date ascending.
+
+#### Query Parameters
+
+- `withinDays`: optional, default `30`, min `1`, max `365`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": [
+    {
+      "id": 10,
+      "productId": 5,
+      "productSku": "APPLE001",
+      "productName": "Green Apple",
+      "batchNumber": "APPLE001-20250425-001",
+      "arrivalDate": "2025-04-25",
+      "expiryDate": "2025-05-10",
+      "quantityReceived": 100,
+      "quantityRemaining": 40,
+      "purchaseUnitPrice": 2.50,
+      "expiryStatus": "EXPIRING_SOON",
+      "createdAt": "2025-04-25T08:00:00Z"
+    }
+  ]
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
 ## User APIs
 
 > All User APIs require `ADMIN` role.
