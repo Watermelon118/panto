@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/products', label: 'Products', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/customers', label: 'Customers', roles: ['ADMIN', 'MARKETING'] },
+  { to: '/inbound', label: 'Inbound', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/users', label: 'Users', roles: ['ADMIN'] },
 ];
 
