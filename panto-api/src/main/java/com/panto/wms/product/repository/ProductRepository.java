@@ -83,6 +83,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<String> findDistinctActiveUnits();
 
     /**
+     * 返回所有启用产品，用于低库存计算。
+     *
+     * @return 启用产品列表
+     */
+    List<Product> findByActiveTrue();
+
+    /**
      * 返回指定产品 ID 列表的聚合库存。
      *
      * @param productIds 产品 ID 列表

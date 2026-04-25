@@ -40,6 +40,20 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     long countByProductIdAndArrivalDate(Long productId, LocalDate arrivalDate);
 
     /**
+     * 返回到期日在指定日期之前且仍有剩余库存的批次，按到期日升序排列。
+     *
+     * @param threshold 到期日截止日期（含当天）
+     * @return 临期批次列表
+     */
+    @Query("""
+        select b from Batch b
+        where b.quantityRemaining > 0
+          and b.expiryDate <= :threshold
+        order by b.expiryDate asc
+        """)
+    List<Batch> findExpiringBatches(@Param("threshold") LocalDate threshold);
+
+    /**
      * 返回指定入库明细 ID 集合对应的所有批次，用于更新入库单时校验库存是否被消耗。
      *
      * @param inboundItemIds 入库明细 ID 集合
