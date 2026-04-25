@@ -9,6 +9,7 @@ import { InboundDetailPage } from './pages/InboundDetailPage';
 import { InboundListPage } from './pages/InboundListPage';
 import { LoginPage } from './pages/LoginPage';
 import { OrderCreatePage } from './pages/OrderCreatePage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { StockSummaryPage } from './pages/StockSummaryPage';
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
           { path: '/customers', element: <CustomersPage /> },
           { path: '/orders', element: <OrdersPage /> },
           { path: '/orders/new', element: <OrderCreatePage /> },
+          { path: '/orders/:id', element: <OrderDetailPage /> },
           { path: '/inbound', element: <InboundListPage /> },
           { path: '/inbound/new', element: <InboundCreatePage /> },
           { path: '/inbound/:id', element: <InboundDetailPage /> },

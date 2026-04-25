@@ -49,6 +49,40 @@ export interface OrderDetail {
   updatedBy: number;
 }
 
+export interface InvoiceCustomer {
+  companyName: string;
+  contactPerson: string | null;
+  phone: string | null;
+  address: string | null;
+  gstNumber: string | null;
+}
+
+export interface InvoiceLine {
+  productSku: string;
+  productName: string;
+  productSpecification: string | null;
+  productUnit: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  gstApplicable: boolean;
+  gstAmount: number;
+}
+
+export interface InvoiceDetail {
+  orderId: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  status: OrderStatus;
+  customer: InvoiceCustomer;
+  items: InvoiceLine[];
+  subtotalAmount: number;
+  gstAmount: number;
+  totalAmount: number;
+  remarks: string | null;
+  paymentInstructions: string | null;
+}
+
 export interface OrderPage {
   items: OrderSummary[];
   page: number;
@@ -67,4 +101,8 @@ export interface CreateOrderRequest {
   customerId: number;
   remarks?: string;
   items: CreateOrderItemRequest[];
+}
+
+export interface RollbackOrderRequest {
+  reason: string;
 }

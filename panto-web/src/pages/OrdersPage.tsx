@@ -146,6 +146,7 @@ export function OrdersPage() {
                 <th className="px-6 py-4 text-right">Items</th>
                 <th className="px-6 py-4 text-right">Total</th>
                 <th className="px-6 py-4">Created</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -169,6 +170,15 @@ export function OrdersPage() {
                     {formatCurrency(order.totalAmount)}
                   </td>
                   <td className="px-6 py-4 text-stone-400">{formatDateTime(order.createdAt)}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-stone-300 transition hover:bg-white/10 hover:text-stone-100"
+                    >
+                      View Details
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
