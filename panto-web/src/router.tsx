@@ -8,6 +8,8 @@ import { InboundCreatePage } from './pages/InboundCreatePage';
 import { InboundDetailPage } from './pages/InboundDetailPage';
 import { InboundListPage } from './pages/InboundListPage';
 import { LoginPage } from './pages/LoginPage';
+import { OrderCreatePage } from './pages/OrderCreatePage';
+import { OrdersPage } from './pages/OrdersPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { StockSummaryPage } from './pages/StockSummaryPage';
 import { TransactionListPage } from './pages/TransactionListPage';
@@ -28,6 +30,8 @@ export const router = createBrowserRouter([
           { path: '/dashboard', element: <DashboardPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/customers', element: <CustomersPage /> },
+          { path: '/orders', element: <OrdersPage /> },
+          { path: '/orders/new', element: <OrderCreatePage /> },
           { path: '/inbound', element: <InboundListPage /> },
           { path: '/inbound/new', element: <InboundCreatePage /> },
           { path: '/inbound/:id', element: <InboundDetailPage /> },

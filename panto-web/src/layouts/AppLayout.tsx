@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/products', label: 'Products', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/customers', label: 'Customers', roles: ['ADMIN', 'MARKETING'] },
+  { to: '/orders', label: 'Orders', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING'] },
   { to: '/inbound', label: 'Inbound', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/inventory/stock', label: 'Stock Summary', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/inventory/batches', label: 'Batches', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
@@ -59,9 +60,10 @@ export function AppLayout() {
       <div className="ml-56 flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center justify-end border-b border-white/10 bg-stone-900/60 px-6 backdrop-blur">
           <div className="flex items-center gap-3 text-sm text-stone-300">
-            <span>
+            <span>{user?.username} | {user?.role}</span>
+            {/*
               {user?.username} · {user?.role}
-            </span>
+            */}
             <button
               type="button"
               onClick={logout}

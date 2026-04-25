@@ -3,6 +3,7 @@ export interface ProductSummary {
   sku: string;
   name: string;
   category: string;
+  specification?: string | null;
   unit: string;
   referencePurchasePrice: number;
   referenceSalePrice: number;
