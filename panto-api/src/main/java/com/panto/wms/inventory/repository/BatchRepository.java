@@ -1,7 +1,9 @@
 package com.panto.wms.inventory.repository;
 
+import com.panto.wms.inventory.domain.ExpiryStatus;
 import com.panto.wms.inventory.entity.Batch;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +40,14 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     long countByProductIdAndArrivalDate(Long productId, LocalDate arrivalDate);
 
     /**
+     * 返回指定入库明细 ID 集合对应的所有批次，用于更新入库单时校验库存是否被消耗。
+     *
+     * @param inboundItemIds 入库明细 ID 集合
+     * @return 批次列表
+     */
+    List<Batch> findByInboundItemIdIn(Collection<Long> inboundItemIds);
+
+    /**
      * 分页查询批次，支持产品和到期状态筛选。
      *
      * @param productId    产品 ID 筛选，可为空
@@ -48,12 +58,12 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     @Query("""
         select b from Batch b
         where (:productId is null or b.productId = :productId)
-          and (:expiryStatus is null or b.expiryStatus = :expiryStatus)
+          and (:#{#expiryStatus} is null or b.expiryStatus = :expiryStatus)
         order by b.expiryDate asc
         """)
     Page<Batch> search(
         @Param("productId") Long productId,
-        @Param("expiryStatus") String expiryStatus,
+        @Param("expiryStatus") ExpiryStatus expiryStatus,
         Pageable pageable
     );
 }
