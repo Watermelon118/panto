@@ -1741,3 +1741,84 @@ Response body structure is the same as `GET /users/{id}`.
 #### Failure Responses
 
 - `USER_NOT_FOUND`
+
+## Settings APIs
+
+System-wide configuration values, e.g. expiry-warning threshold consumed by the daily expiry scan and dashboard widgets. Only the manager role may read or modify settings.
+
+The endpoint returns a typed object so the frontend does not need to parse string values. Future settings can be added as additional fields on the same DTO.
+
+### GET `/api/v1/settings`
+
+Return current system settings.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "expiryWarningDays": 30
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`
+
+### PUT `/api/v1/settings`
+
+Update system settings. Returns the updated settings on success.
+
+#### Request Body
+
+```json
+{
+  "expiryWarningDays": 45
+}
+```
+
+#### Validation Rules
+
+- `expiryWarningDays`: required, integer, range `[0, 3650]`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "expiryWarningDays": 45
+  }
+}
+```
+
+#### Failure Responses
+
+Validation failure:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "expiry_warning_days must be between 0 and 3650",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`
+
+#### Notes
+
+- Changes take effect immediately for new requests; the next scheduled expiry scan (00:00 Pacific/Auckland) uses the latest threshold
+- The service caches values in memory and refreshes the cache on every successful update
