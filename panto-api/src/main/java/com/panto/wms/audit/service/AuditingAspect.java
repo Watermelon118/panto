@@ -19,6 +19,7 @@ import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.security.core.Authentication;
@@ -128,7 +129,17 @@ public class AuditingAspect {
             return null;
         }
 
-        Object value = expressionParser.parseExpression(expression).getValue(context);
+        Object value;
+        try {
+            value = expressionParser.parseExpression(expression).getValue(context);
+        } catch (SpelEvaluationException ex) {
+            Object result = context.lookupVariable("result");
+            if (result == null && expression.contains("#result")) {
+                return null;
+            }
+            throw ex;
+        }
+
         if (value instanceof Number number) {
             return number.longValue();
         }
@@ -145,7 +156,6 @@ public class AuditingAspect {
             return null;
         }
 
-        entityManager.detach(entity);
         return sanitize(objectMapper.valueToTree(entity));
     }
 
