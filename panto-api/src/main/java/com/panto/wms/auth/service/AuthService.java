@@ -1,5 +1,8 @@
 package com.panto.wms.auth.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
+import com.panto.wms.audit.service.AuditLogService;
 import com.panto.wms.auth.domain.LoginFailureReason;
 import com.panto.wms.auth.dto.ChangePasswordRequest;
 import com.panto.wms.auth.dto.LoginRequest;
@@ -38,6 +41,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
+    private final AuditLogService auditLogService;
 
     /**
      * 创建认证服务。
@@ -47,19 +51,22 @@ public class AuthService {
      * @param passwordEncoder 密码编码器
      * @param jwtTokenProvider JWT 处理组件
      * @param jwtProperties JWT 配置
+     * @param auditLogService 审计日志服务
      */
     public AuthService(
         UserRepository userRepository,
         LoginAttemptRepository loginAttemptRepository,
         PasswordEncoder passwordEncoder,
         JwtTokenProvider jwtTokenProvider,
-        JwtProperties jwtProperties
+        JwtProperties jwtProperties,
+        AuditLogService auditLogService
     ) {
         this.userRepository = userRepository;
         this.loginAttemptRepository = loginAttemptRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.jwtProperties = jwtProperties;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -69,7 +76,7 @@ public class AuthService {
      * @param ipAddress 客户端 IP
      * @return 登录结果
      */
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public LoginResult login(LoginRequest request, String ipAddress) {
         String username = request.username().trim();
         OffsetDateTime now = OffsetDateTime.now();
@@ -77,6 +84,7 @@ public class AuthService {
         Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isEmpty()) {
             recordFailedAttempt(username, ipAddress, LoginFailureReason.USER_NOT_FOUND, now);
+            recordLoginFailureAudit(username, ipAddress, null, "登录失败: 用户不存在");
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
 
@@ -84,17 +92,20 @@ public class AuthService {
 
         if (Boolean.FALSE.equals(user.getActive())) {
             recordFailedAttempt(username, ipAddress, LoginFailureReason.ACCOUNT_DISABLED, now);
+            recordLoginFailureAudit(username, ipAddress, user, "登录失败: 账号已停用");
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "账号已停用");
         }
 
         if (isUserLocked(user, now)) {
             recordFailedAttempt(username, ipAddress, LoginFailureReason.ACCOUNT_LOCKED, now);
+            recordLoginFailureAudit(username, ipAddress, user, "登录失败: 账号已被锁定");
             throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED, "账号已被锁定，请10分钟后再试");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             recordFailedAttempt(username, ipAddress, LoginFailureReason.BAD_CREDENTIALS, now);
             lockUserIfNeeded(user, now);
+            recordLoginFailureAudit(username, ipAddress, user, "登录失败: 用户名或密码错误");
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
 
@@ -104,6 +115,7 @@ public class AuthService {
         userRepository.save(user);
 
         recordSuccessAttempt(username, ipAddress, now);
+        recordLoginSuccessAudit(user, ipAddress);
 
         AuthenticatedUser authenticatedUser = AuthenticatedUser.from(user);
         String accessToken = jwtTokenProvider.generateAccessToken(authenticatedUser);
@@ -177,6 +189,13 @@ public class AuthService {
      * @return 更新后的登录结果
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "USER",
+        entityClass = User.class,
+        entityId = "#userId",
+        description = "修改本人密码"
+    )
     public LoginResult changePassword(Long userId, ChangePasswordRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_UNAUTHORIZED));
@@ -266,6 +285,41 @@ public class AuthService {
         loginAttempt.setFailureReason(failureReason.name());
         loginAttempt.setCreatedAt(now);
         loginAttemptRepository.save(loginAttempt);
+    }
+
+    private void recordLoginSuccessAudit(User user, String ipAddress) {
+        auditLogService.recordAuditLog(
+            user.getId(),
+            user.getUsername(),
+            user.getRole().name(),
+            "USER",
+            user.getId(),
+            AuditAction.LOGIN,
+            "用户登录",
+            ipAddress,
+            null,
+            null
+        );
+    }
+
+    private void recordLoginFailureAudit(
+        String username,
+        String ipAddress,
+        User user,
+        String description
+    ) {
+        auditLogService.recordAuditLog(
+            user != null ? user.getId() : null,
+            username,
+            user != null ? user.getRole().name() : null,
+            "USER",
+            user != null ? user.getId() : null,
+            AuditAction.LOGIN_FAIL,
+            description,
+            ipAddress,
+            null,
+            null
+        );
     }
 
     /**

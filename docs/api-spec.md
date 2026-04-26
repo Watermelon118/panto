@@ -17,6 +17,8 @@
 | `AUTH_ACCOUNT_LOCKED` | Account is temporarily locked |
 | `AUTH_UNAUTHORIZED` | Not logged in or token is invalid |
 | `AUTH_FORBIDDEN` | Current user is disabled or has no permission |
+| `AUTH_PASSWORD_CHANGE_REQUIRED` | Current user must change password before continuing |
+| `AUTH_CURRENT_PASSWORD_INCORRECT` | Current password is incorrect |
 | `USER_NOT_FOUND` | User does not exist |
 | `USER_USERNAME_ALREADY_EXISTS` | Username already taken |
 | `CUSTOMER_NOT_FOUND` | Customer does not exist |
@@ -232,6 +234,176 @@ HTTP Status: `400 Bad Request`
 - Refresh token is rotated on every successful refresh
 - Refresh flow re-checks current user status from database
 - If user is deleted, disabled, or locked, refresh request is rejected
+
+### POST `/auth/change-password`
+
+Change the password for the current logged-in user. This endpoint also clears the first-login password-change flag and returns a fresh token pair.
+
+#### Request Body
+
+```json
+{
+  "currentPassword": "admin123",
+  "newPassword": "newpass123"
+}
+```
+
+#### Validation Rules
+
+- `currentPassword`: required, cannot be blank
+- `newPassword`: required, min length `8`, max length `100`, must contain at least one letter and one digit
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Set-Cookie:
+
+```text
+refresh_token=<new-jwt>; HttpOnly; SameSite=Strict; Path=/api/v1/auth
+```
+
+Response body:
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "accessToken": "<new-jwt>",
+    "tokenType": "Bearer",
+    "expiresIn": 7200,
+    "userId": 1,
+    "username": "admin",
+    "role": "ADMIN",
+    "mustChangePassword": false
+  }
+}
+```
+
+#### Failure Responses
+
+Current password is incorrect:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "AUTH_CURRENT_PASSWORD_INCORRECT",
+  "message": "当前密码错误",
+  "data": null
+}
+```
+
+Authentication invalid:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "AUTH_UNAUTHORIZED",
+  "message": "未登录或登录已失效",
+  "data": null
+}
+```
+
+#### Notes
+
+- After a successful password change, `mustChangePassword` becomes `false`
+- The backend returns a fresh access token and rotated refresh token immediately
+
+### POST `/auth/logout`
+
+Logout the current user by clearing the refresh token cookie on the client.
+
+#### Request Body
+
+No request body.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Set-Cookie:
+
+```text
+refresh_token=; HttpOnly; SameSite=Strict; Path=/api/v1/auth; Max-Age=0
+```
+
+Response body:
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": null
+}
+```
+
+## Audit Log APIs
+
+> Audit log APIs require `ADMIN` role.
+
+### GET `/audit-logs`
+
+Get paginated audit logs with optional filters.
+
+#### Query Parameters
+
+- `operatorId`: optional, filters by operator user ID
+- `entityType`: optional, exact match ignoring case, e.g. `ORDER`
+- `action`: optional, one of `CREATE`, `UPDATE`, `DELETE`, `ROLLBACK`, `LOGIN`, `LOGIN_FAIL`
+- `dateFrom`: optional, format `yyyy-MM-dd`, filters logs created on or after this date
+- `dateTo`: optional, format `yyyy-MM-dd`, filters logs created before the next day of this date
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 900,
+        "operatorId": 1,
+        "operatorUsername": "admin",
+        "operatorRole": "ADMIN",
+        "entityType": "ORDER",
+        "entityId": 500,
+        "action": "ROLLBACK",
+        "description": "回滚订单",
+        "ipAddress": "127.0.0.1",
+        "beforeValue": {
+          "status": "ACTIVE"
+        },
+        "afterValue": {
+          "status": "ROLLED_BACK"
+        },
+        "createdAt": "2026-04-26T10:15:30+12:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Notes
+
+- Successful write operations store before/after snapshots automatically through AOP
+- Login success and login failure events are also recorded in the same audit log stream
+- Sensitive fields such as password hashes and token fields are removed from stored snapshots
+
+#### Access Rules
+
+- Roles: `ADMIN`
 
 ## Product APIs
 

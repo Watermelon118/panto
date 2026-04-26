@@ -1,5 +1,7 @@
 package com.panto.wms.customer.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.customer.dto.CreateCustomerRequest;
@@ -80,6 +82,13 @@ public class CustomerService {
      * @return 创建后的客户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "CUSTOMER",
+        entityClass = Customer.class,
+        entityId = "#result.id",
+        description = "创建客户"
+    )
     public CustomerResponse createCustomer(CreateCustomerRequest request, Long operatorId) {
         OffsetDateTime now = OffsetDateTime.now();
 
@@ -112,6 +121,13 @@ public class CustomerService {
      * @return 更新后的客户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "CUSTOMER",
+        entityClass = Customer.class,
+        entityId = "#customerId",
+        description = "更新客户"
+    )
     public CustomerResponse updateCustomer(Long customerId, UpdateCustomerRequest request, Long operatorId) {
         Customer customer = findCustomerOrThrow(customerId);
 
@@ -140,6 +156,13 @@ public class CustomerService {
      * @return 更新后的客户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "CUSTOMER",
+        entityClass = Customer.class,
+        entityId = "#customerId",
+        description = "更新客户状态"
+    )
     public CustomerResponse updateCustomerStatus(Long customerId, boolean active, Long operatorId) {
         Customer customer = findCustomerOrThrow(customerId);
         customer.setActive(active);

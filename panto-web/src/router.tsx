@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
+import { AuditLogsPage } from './pages/AuditLogsPage';
 import { BatchListPage } from './pages/BatchListPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { CustomersPage } from './pages/CustomersPage';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: '/dashboard', element: <DashboardPage /> },
+          { path: '/audit-logs', element: <AuditLogsPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/customers', element: <CustomersPage /> },
           { path: '/orders', element: <OrdersPage /> },

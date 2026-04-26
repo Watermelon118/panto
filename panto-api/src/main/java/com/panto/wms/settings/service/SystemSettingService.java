@@ -1,5 +1,7 @@
 package com.panto.wms.settings.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.settings.entity.SystemSetting;
@@ -98,6 +100,13 @@ public class SystemSettingService {
      * @return 更新后的设置
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "SYSTEM_SETTING",
+        entityClass = SystemSetting.class,
+        entityId = "#result.id",
+        description = "更新系统设置"
+    )
     public SystemSetting update(String key, String value, Long operatorId) {
         String normalizedKey = normalizeKey(key);
         String normalizedValue = normalizeValue(value);

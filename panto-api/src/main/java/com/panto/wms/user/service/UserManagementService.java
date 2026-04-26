@@ -1,5 +1,7 @@
 package com.panto.wms.user.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.auth.entity.User;
 import com.panto.wms.auth.repository.UserRepository;
 import com.panto.wms.common.exception.BusinessException;
@@ -83,6 +85,13 @@ public class UserManagementService {
      * @return 创建后的用户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "USER",
+        entityClass = User.class,
+        entityId = "#result.id",
+        description = "创建用户"
+    )
     public UserResponse createUser(CreateUserRequest request, Long operatorId) {
         String normalizedUsername = normalizeRequired(request.username(), "username");
         validateUsernameUniqueness(normalizedUsername, null);
@@ -115,6 +124,13 @@ public class UserManagementService {
      * @return 更新后的用户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "USER",
+        entityClass = User.class,
+        entityId = "#userId",
+        description = "更新用户"
+    )
     public UserResponse updateUser(Long userId, UpdateUserRequest request, Long operatorId) {
         User user = findUserOrThrow(userId);
         user.setFullName(normalizeRequired(request.fullName(), "fullName"));
@@ -135,6 +151,13 @@ public class UserManagementService {
      * @return 更新后的用户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "USER",
+        entityClass = User.class,
+        entityId = "#userId",
+        description = "更新用户状态"
+    )
     public UserResponse updateUserStatus(Long userId, boolean active, Long operatorId) {
         User user = findUserOrThrow(userId);
         user.setActive(active);
@@ -156,6 +179,13 @@ public class UserManagementService {
      * @return 更新后的用户
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "USER",
+        entityClass = User.class,
+        entityId = "#userId",
+        description = "重置用户密码"
+    )
     public UserResponse resetPassword(Long userId, ResetUserPasswordRequest request, Long operatorId) {
         User user = findUserOrThrow(userId);
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));

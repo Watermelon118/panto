@@ -11,6 +11,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.panto.wms.audit.domain.AuditAction;
+import com.panto.wms.audit.service.AuditLogService;
 import com.panto.wms.auth.domain.LoginFailureReason;
 import com.panto.wms.auth.domain.UserRole;
 import com.panto.wms.auth.dto.ChangePasswordRequest;
@@ -60,6 +62,9 @@ class AuthServiceTest {
     @Mock
     private JwtProperties jwtProperties;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -100,6 +105,18 @@ class AuthServiceTest {
         assertEquals("127.0.0.1", loginAttempt.getIpAddress());
         assertTrue(loginAttempt.getSuccess());
         assertNull(loginAttempt.getFailureReason());
+        verify(auditLogService).recordAuditLog(
+            1L,
+            "admin",
+            "ADMIN",
+            "USER",
+            1L,
+            AuditAction.LOGIN,
+            "用户登录",
+            "127.0.0.1",
+            null,
+            null
+        );
     }
 
     @Test
@@ -119,6 +136,18 @@ class AuthServiceTest {
         assertEquals(Boolean.FALSE, loginAttempt.getSuccess());
         assertEquals(LoginFailureReason.USER_NOT_FOUND.name(), loginAttempt.getFailureReason());
         verify(userRepository, never()).save(any(User.class));
+        verify(auditLogService).recordAuditLog(
+            null,
+            "ghost",
+            null,
+            "USER",
+            null,
+            AuditAction.LOGIN_FAIL,
+            "登录失败: 用户不存在",
+            "127.0.0.1",
+            null,
+            null
+        );
     }
 
     @Test
@@ -147,6 +176,18 @@ class AuthServiceTest {
         verify(loginAttemptRepository).save(loginAttemptCaptor.capture());
         LoginAttempt loginAttempt = loginAttemptCaptor.getValue();
         assertEquals(LoginFailureReason.BAD_CREDENTIALS.name(), loginAttempt.getFailureReason());
+        verify(auditLogService).recordAuditLog(
+            1L,
+            "admin",
+            "ADMIN",
+            "USER",
+            1L,
+            AuditAction.LOGIN_FAIL,
+            "登录失败: 用户名或密码错误",
+            "127.0.0.1",
+            null,
+            null
+        );
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.panto.wms.order.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.customer.entity.Customer;
@@ -99,6 +101,13 @@ public class OrderService {
      * @return 创建后的订单详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "ORDER",
+        entityClass = Order.class,
+        entityId = "#result.id",
+        description = "创建订单"
+    )
     public OrderResponse createOrder(CreateOrderRequest request, Long operatorId) {
         try {
             return doCreateOrder(request, operatorId);
@@ -186,6 +195,13 @@ public class OrderService {
      * @return 回滚后的订单详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.ROLLBACK,
+        entityType = "ORDER",
+        entityClass = Order.class,
+        entityId = "#orderId",
+        description = "回滚订单"
+    )
     public OrderResponse rollbackOrder(Long orderId, String reason, Long operatorId) {
         try {
             return doRollbackOrder(orderId, reason, operatorId);
