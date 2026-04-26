@@ -1852,6 +1852,13 @@ HTTP Status: `200 OK`
     "invoiceNumber": "ORD-20260425-001",
     "invoiceDate": "2026-04-25T10:00:00Z",
     "status": "ACTIVE",
+    "seller": {
+      "companyName": "Panto Trading Ltd",
+      "gstNumber": "GST-9988",
+      "address": "1 Queen Street, Auckland",
+      "phone": "09 123 4567",
+      "email": "accounts@panto.co.nz"
+    },
     "customer": {
       "companyName": "Fresh Dumplings Ltd",
       "contactPerson": "Alex Chen",
@@ -1885,6 +1892,28 @@ HTTP Status: `200 OK`
 
 - Invoice lines are aggregated by product snapshot + unit price, even if the actual stock deduction used multiple batches
 - `invoiceNumber` currently reuses `orderNumber`
+- Seller information comes from system settings so invoice header details can be updated without code changes
+
+### GET `/orders/{id}/invoice/pdf`
+
+Download a two-page invoice PDF containing both `Customer Copy` and `Office Copy`.
+
+#### Response
+
+HTTP Status: `200 OK`
+
+Content type:
+
+- `application/pdf`
+
+File naming pattern:
+
+- `invoice-<invoiceNumber>.pdf`
+
+#### Notes
+
+- PDF content is generated server-side from the same invoice payload returned by `GET /orders/{id}/invoice`
+- Each PDF contains two copies with identical line items and totals, labelled for customer and office filing
 
 #### Failure Responses
 
@@ -2324,7 +2353,13 @@ HTTP Status: `200 OK`
   "code": "SUCCESS",
   "message": "Success",
   "data": {
-    "expiryWarningDays": 30
+    "expiryWarningDays": 30,
+    "invoiceSellerCompanyName": "Panto Trading Ltd",
+    "invoiceSellerGstNumber": "GST-9988",
+    "invoiceSellerAddress": "1 Queen Street, Auckland",
+    "invoiceSellerPhone": "09 123 4567",
+    "invoiceSellerEmail": "accounts@panto.co.nz",
+    "invoicePaymentInstructions": "Bank transfer"
   }
 }
 ```
@@ -2341,7 +2376,13 @@ Update system settings. Returns the updated settings on success.
 
 ```json
 {
-  "expiryWarningDays": 45
+  "expiryWarningDays": 45,
+  "invoiceSellerCompanyName": "Panto Trading Ltd",
+  "invoiceSellerGstNumber": "GST-9988",
+  "invoiceSellerAddress": "1 Queen Street, Auckland",
+  "invoiceSellerPhone": "09 123 4567",
+  "invoiceSellerEmail": "accounts@panto.co.nz",
+  "invoicePaymentInstructions": "Bank transfer"
 }
 ```
 
@@ -2358,7 +2399,13 @@ HTTP Status: `200 OK`
   "code": "SUCCESS",
   "message": "Success",
   "data": {
-    "expiryWarningDays": 45
+    "expiryWarningDays": 45,
+    "invoiceSellerCompanyName": "Panto Trading Ltd",
+    "invoiceSellerGstNumber": "GST-9988",
+    "invoiceSellerAddress": "1 Queen Street, Auckland",
+    "invoiceSellerPhone": "09 123 4567",
+    "invoiceSellerEmail": "accounts@panto.co.nz",
+    "invoicePaymentInstructions": "Bank transfer"
   }
 }
 ```
@@ -2385,3 +2432,4 @@ HTTP Status: `400 Bad Request`
 
 - Changes take effect immediately for new requests; the next scheduled expiry scan (00:00 Pacific/Auckland) uses the latest threshold
 - The service caches values in memory and refreshes the cache on every successful update
+- Invoice seller and payment settings are reused by both invoice preview and server-generated PDF downloads

@@ -12,6 +12,7 @@ import java.util.List;
  * @param invoiceNumber 发票号
  * @param invoiceDate 开票时间
  * @param status 订单状态
+ * @param seller 卖方信息
  * @param customer 客户信息
  * @param items 发票明细行
  * @param subtotalAmount 未税金额
@@ -25,6 +26,7 @@ public record InvoiceResponse(
     String invoiceNumber,
     OffsetDateTime invoiceDate,
     OrderStatus status,
+    InvoiceSellerResponse seller,
     InvoiceCustomerResponse customer,
     List<InvoiceLineResponse> items,
     BigDecimal subtotalAmount,

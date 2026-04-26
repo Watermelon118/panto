@@ -13,7 +13,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.time.LocalDate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -90,6 +94,23 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'MARKETING')")
     public Result<InvoiceResponse> getInvoice(@PathVariable Long id) {
         return Result.success(orderService.getInvoice(id));
+    }
+
+    /**
+     * 下载订单发票 PDF。
+     *
+     * @param id 订单 ID
+     * @return PDF 下载响应
+     */
+    @GetMapping("/{id}/invoice/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'MARKETING')")
+    public ResponseEntity<ByteArrayResource> downloadInvoicePdf(@PathVariable Long id) {
+        OrderService.InvoicePdfFile invoicePdfFile = orderService.getInvoicePdf(id);
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(invoicePdfFile.contentType()))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + invoicePdfFile.fileName() + "\"")
+            .contentLength(invoicePdfFile.content().length)
+            .body(new ByteArrayResource(invoicePdfFile.content()));
     }
 
     /**

@@ -57,6 +57,14 @@ export interface InvoiceCustomer {
   gstNumber: string | null;
 }
 
+export interface InvoiceSeller {
+  companyName: string;
+  gstNumber: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
 export interface InvoiceLine {
   productSku: string;
   productName: string;
@@ -74,6 +82,7 @@ export interface InvoiceDetail {
   invoiceNumber: string;
   invoiceDate: string;
   status: OrderStatus;
+  seller: InvoiceSeller;
   customer: InvoiceCustomer;
   items: InvoiceLine[];
   subtotalAmount: number;

@@ -4,10 +4,22 @@ import { apiClient } from './client';
 
 export interface SystemSettings {
   expiryWarningDays: number;
+  invoiceSellerCompanyName: string;
+  invoiceSellerGstNumber: string;
+  invoiceSellerAddress: string;
+  invoiceSellerPhone: string;
+  invoiceSellerEmail: string;
+  invoicePaymentInstructions: string;
 }
 
 export interface UpdateSystemSettingsRequest {
   expiryWarningDays: number;
+  invoiceSellerCompanyName: string;
+  invoiceSellerGstNumber: string;
+  invoiceSellerAddress: string;
+  invoiceSellerPhone: string;
+  invoiceSellerEmail: string;
+  invoicePaymentInstructions: string;
 }
 
 async function fetchSettings(): Promise<SystemSettings> {

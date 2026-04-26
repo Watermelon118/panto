@@ -82,6 +82,24 @@ class SystemSettingServiceTest {
     }
 
     @Test
+    void getInvoicePaymentInstructionsShouldReturnDefaultWhenMissing() {
+        when(repository.findBySettingKey("invoice_payment_instructions")).thenReturn(Optional.empty());
+
+        assertEquals(
+            SystemSettingService.DEFAULT_INVOICE_PAYMENT_INSTRUCTIONS,
+            service.getInvoicePaymentInstructions()
+        );
+    }
+
+    @Test
+    void getInvoiceSellerCompanyNameShouldReturnConfiguredValue() {
+        when(repository.findBySettingKey("invoice_seller_company_name"))
+            .thenReturn(Optional.of(buildSetting("invoice_seller_company_name", "Panto Trading Ltd")));
+
+        assertEquals("Panto Trading Ltd", service.getInvoiceSellerCompanyName());
+    }
+
+    @Test
     void updateShouldCreateNewSettingWhenMissing() {
         when(repository.findBySettingKey("expiry_warning_days")).thenReturn(Optional.empty());
         when(repository.save(any(SystemSetting.class))).thenAnswer(inv -> inv.getArgument(0));
