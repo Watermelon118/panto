@@ -1,5 +1,8 @@
 # Panto - Food Warehouse Management System
 
+# some details
+To prevent garbled characters when reading the file, please use UTF-8 encoding format when reading.
+
 ## Project Overview
 Panto is a single-warehouse management system for small food B2B businesses.
 Reference business scenario: NZ-based food wholesale operation.
@@ -109,16 +112,11 @@ panto/
 
 ### Milestone 2 Git Workflow
 - 采用简化版企业 Git Flow：`main` 为稳定分支，`develop` 为 milestone2 集成分支。
-- 所有 milestone2 功能都从 `develop` 拉出 `feature/*` 分支开发。
+- 所有 milestone 功能都从 `develop` 拉出 `feature/*` 分支开发。
 - 功能分支自测通过后合并回 `develop`。
 - `develop` 验证通过后，再合并回 `main`。
-- 推荐分支命名：`feature/product-management`、`feature/customer-management`、`feature/user-management`、`feature/m2-frontend-pages`。
 
-### Commit Strategy
-- milestone2 默认按功能分支推进，每条功能分支优先拆成 2 个提交。
-- `commit 1`：实现功能主代码，例如后端实体、DTO、Repository、Service、Controller。
-- `commit 2`：补 service 层测试与 `docs/api-spec.md` 文档。
-- commit message 继续使用 Conventional Commits，例如 `feat: add customer management backend`、`test: add customer management service tests and api docs`。
+
 
 ### Execution Preferences
 - 默认不要一次性铺开很多文件，先从最小可落地的文件开始。

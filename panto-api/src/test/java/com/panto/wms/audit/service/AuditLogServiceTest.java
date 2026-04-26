@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,7 +15,6 @@ import com.panto.wms.audit.entity.AuditLog;
 import com.panto.wms.audit.repository.AuditLogRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -126,8 +126,14 @@ class AuditLogServiceTest {
             eq(PageRequest.of(1, 20))
         );
 
-        assertEquals(OffsetDateTime.of(2026, 4, 1, 0, 0, 0, 0, currentOffset()), createdFromCaptor.getValue());
-        assertEquals(OffsetDateTime.of(2026, 4, 3, 0, 0, 0, 0, currentOffset()), createdToCaptor.getValue());
+        assertEquals(
+            LocalDate.of(2026, 4, 1).atStartOfDay(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
+            createdFromCaptor.getValue()
+        );
+        assertEquals(
+            LocalDate.of(2026, 4, 3).atStartOfDay(java.time.ZoneId.systemDefault()).toOffsetDateTime(),
+            createdToCaptor.getValue()
+        );
         assertEquals(1, response.page());
         assertEquals(20, response.size());
         assertEquals(21L, response.totalElements());
@@ -138,7 +144,31 @@ class AuditLogServiceTest {
         assertEquals("WAREHOUSE", response.items().getFirst().operatorRole());
     }
 
-    private ZoneOffset currentOffset() {
-        return OffsetDateTime.now().getOffset();
+    @Test
+    void listAuditLogsShouldUseTypedFallbackBoundsWhenDatesMissing() {
+        when(auditLogRepository.search(
+            isNull(),
+            isNull(),
+            isNull(),
+            any(OffsetDateTime.class),
+            any(OffsetDateTime.class),
+            eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        var response = auditLogService.listAuditLogs(null, null, null, null, null, 0, 20);
+
+        verify(auditLogRepository).search(
+            isNull(),
+            isNull(),
+            isNull(),
+            createdFromCaptor.capture(),
+            createdToCaptor.capture(),
+            eq(PageRequest.of(0, 20))
+        );
+
+        assertEquals(OffsetDateTime.parse("1970-01-01T00:00:00Z"), createdFromCaptor.getValue());
+        assertEquals(OffsetDateTime.parse("9999-12-31T23:59:59.999999999Z"), createdToCaptor.getValue());
+        assertEquals(0, response.totalElements());
+        assertEquals(0, response.totalPages());
     }
 }

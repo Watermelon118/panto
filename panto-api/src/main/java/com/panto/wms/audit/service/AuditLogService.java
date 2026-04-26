@@ -8,7 +8,7 @@ import com.panto.wms.audit.entity.AuditLog;
 import com.panto.wms.audit.repository.AuditLogRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.data.domain.Page;
@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AuditLogService {
+
+    private static final OffsetDateTime DEFAULT_CREATED_FROM = OffsetDateTime.parse("1970-01-01T00:00:00Z");
+    private static final OffsetDateTime DEFAULT_CREATED_TO = OffsetDateTime.parse("9999-12-31T23:59:59.999999999Z");
 
     private final AuditLogRepository auditLogRepository;
 
@@ -101,12 +104,14 @@ public class AuditLogService {
         String entityTypeUpper = normalizedEntityType == null
             ? null
             : normalizedEntityType.toUpperCase(Locale.ROOT);
+        OffsetDateTime createdFrom = resolveCreatedFrom(dateFrom);
+        OffsetDateTime createdTo = resolveCreatedTo(dateTo);
         Page<AuditLog> result = auditLogRepository.search(
             operatorId,
             entityTypeUpper,
             action,
-            toStartOfDay(dateFrom),
-            toStartOfNextDay(dateTo),
+            createdFrom,
+            createdTo,
             PageRequest.of(page, size)
         );
 
@@ -149,15 +154,15 @@ public class AuditLogService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private OffsetDateTime toStartOfDay(LocalDate date) {
-        return date == null ? null : date.atStartOfDay().atOffset(currentOffset());
+    private OffsetDateTime resolveCreatedFrom(LocalDate date) {
+        return date == null ? DEFAULT_CREATED_FROM : date.atStartOfDay(systemZone()).toOffsetDateTime();
     }
 
-    private OffsetDateTime toStartOfNextDay(LocalDate date) {
-        return date == null ? null : date.plusDays(1).atStartOfDay().atOffset(currentOffset());
+    private OffsetDateTime resolveCreatedTo(LocalDate date) {
+        return date == null ? DEFAULT_CREATED_TO : date.plusDays(1).atStartOfDay(systemZone()).toOffsetDateTime();
     }
 
-    private ZoneOffset currentOffset() {
-        return OffsetDateTime.now().getOffset();
+    private ZoneId systemZone() {
+        return ZoneId.systemDefault();
     }
 }
