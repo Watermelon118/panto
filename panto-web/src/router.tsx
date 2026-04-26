@@ -15,6 +15,8 @@ import { OrderCreatePage } from './pages/OrderCreatePage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { StockSummaryPage } from './pages/StockSummaryPage';
 import { TransactionListPage } from './pages/TransactionListPage';
 import { UsersPage } from './pages/UsersPage';
@@ -46,6 +48,8 @@ export const router = createBrowserRouter([
           { path: '/destructions', element: <DestructionListPage /> },
           { path: '/destructions/new', element: <DestructionCreatePage /> },
           { path: '/destructions/:id', element: <DestructionDetailPage /> },
+          { path: '/reports', element: <ReportsPage /> },
+          { path: '/settings', element: <SettingsPage /> },
           { path: '/users', element: <UsersPage /> },
         ],
       },
