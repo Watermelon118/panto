@@ -168,6 +168,7 @@ export function TransactionListPage() {
                   <th className="px-6 py-4 text-right">Change</th>
                   <th className="px-6 py-4 text-right">Before</th>
                   <th className="px-6 py-4 text-right">After</th>
+                  <th className="px-6 py-4">Operator</th>
                   <th className="px-6 py-4">Document</th>
                   <th className="px-6 py-4">Note</th>
                 </tr>
@@ -207,6 +208,9 @@ export function TransactionListPage() {
                     </td>
                     <td className="px-6 py-4 text-right text-stone-200">
                       {transaction.quantityAfter}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-stone-300">
+                      {transaction.operator || '—'}
                     </td>
                     <td className="px-6 py-4 text-xs text-stone-400">
                       {formatDocumentLabel(

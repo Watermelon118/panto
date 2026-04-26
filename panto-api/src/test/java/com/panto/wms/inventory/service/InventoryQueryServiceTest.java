@@ -7,6 +7,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.panto.wms.auth.domain.UserRole;
+import com.panto.wms.auth.entity.User;
+import com.panto.wms.auth.repository.UserRepository;
 import com.panto.wms.inventory.domain.ExpiryStatus;
 import com.panto.wms.inventory.domain.TransactionType;
 import com.panto.wms.inventory.dto.BatchPageResponse;
@@ -43,6 +46,7 @@ class InventoryQueryServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private BatchRepository batchRepository;
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks
     private InventoryQueryService inventoryQueryService;
@@ -162,11 +166,13 @@ class InventoryQueryServiceTest {
         InventoryTransaction tx = buildTransaction(100L, 10L, 1L, TransactionType.IN, 80, 0, 80);
         Batch batch = buildBatch(10L, 1L, "APPLE001-20250425-001", 80, 80);
         Product product = buildProduct(1L, "APPLE001", "Green Apple", 50);
+        User operator = buildUser(1L, "admin", "Alice Admin");
         PageImpl<InventoryTransaction> page = new PageImpl<>(List.of(tx), PageRequest.of(0, 20), 1);
 
         when(inventoryTransactionRepository.search(null, null, PageRequest.of(0, 20))).thenReturn(page);
         when(batchRepository.findAllById(List.of(10L))).thenReturn(List.of(batch));
         when(productRepository.findAllById(List.of(1L))).thenReturn(List.of(product));
+        when(userRepository.findAllById(List.of(1L))).thenReturn(List.of(operator));
 
         TransactionPageResponse response = inventoryQueryService.getTransactions(null, null, 0, 20);
 
@@ -179,6 +185,8 @@ class InventoryQueryServiceTest {
         assertEquals(80, item.quantityDelta());
         assertEquals(0, item.quantityBefore());
         assertEquals(80, item.quantityAfter());
+        assertEquals("Alice Admin (admin)", item.operator());
+        assertEquals(1L, item.createdBy());
     }
 
     // ── getLowStockProducts ──────────────────────────────────────────────────
@@ -321,5 +329,21 @@ class InventoryQueryServiceTest {
             @Override public Long getProductId() { return productId; }
             @Override public Long getCurrentStock() { return currentStock; }
         };
+    }
+
+    private User buildUser(Long id, String username, String fullName) {
+        User user = new User();
+        user.setId(id);
+        user.setUsername(username);
+        user.setFullName(fullName);
+        user.setRole(UserRole.ADMIN);
+        user.setPasswordHash("hash");
+        user.setActive(true);
+        user.setMustChangePassword(false);
+        user.setCreatedAt(OffsetDateTime.now().minusDays(10));
+        user.setUpdatedAt(OffsetDateTime.now().minusDays(1));
+        user.setCreatedBy(1L);
+        user.setUpdatedBy(1L);
+        return user;
     }
 }

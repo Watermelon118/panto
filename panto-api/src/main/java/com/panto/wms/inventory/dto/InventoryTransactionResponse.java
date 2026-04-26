@@ -20,6 +20,7 @@ import java.time.OffsetDateTime;
  * @param relatedDocumentId   关联单据 ID，可为空
  * @param note                备注，可为空
  * @param createdAt           事务创建时间
+ * @param operator            操作人展示名称
  * @param createdBy           操作人 ID
  */
 public record InventoryTransactionResponse(
@@ -37,6 +38,7 @@ public record InventoryTransactionResponse(
     Long relatedDocumentId,
     String note,
     OffsetDateTime createdAt,
+    String operator,
     Long createdBy
 ) {
 }

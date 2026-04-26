@@ -982,6 +982,7 @@ HTTP Status: `200 OK`
         "relatedDocumentId": 1,
         "note": "Goods received, inbound record #1",
         "createdAt": "2025-04-25T08:00:00Z",
+        "operator": "Alice Admin (admin)",
         "createdBy": 1
       }
     ],

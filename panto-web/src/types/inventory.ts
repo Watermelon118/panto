@@ -58,6 +58,7 @@ export interface InventoryTransaction {
   relatedDocumentId: number | null;
   note: string | null;
   createdAt: string;
+  operator: string;
   createdBy: number;
 }
 

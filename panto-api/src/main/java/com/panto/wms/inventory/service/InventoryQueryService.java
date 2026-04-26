@@ -1,5 +1,7 @@
 package com.panto.wms.inventory.service;
 
+import com.panto.wms.auth.entity.User;
+import com.panto.wms.auth.repository.UserRepository;
 import com.panto.wms.inventory.domain.ExpiryStatus;
 import com.panto.wms.inventory.domain.TransactionType;
 import com.panto.wms.inventory.dto.BatchPageResponse;
@@ -21,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,6 +42,7 @@ public class InventoryQueryService {
     private final ProductRepository productRepository;
     private final BatchRepository batchRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
+    private final UserRepository userRepository;
 
     /**
      * 创建库存查询服务。
@@ -46,11 +50,13 @@ public class InventoryQueryService {
     public InventoryQueryService(
         ProductRepository productRepository,
         BatchRepository batchRepository,
-        InventoryTransactionRepository inventoryTransactionRepository
+        InventoryTransactionRepository inventoryTransactionRepository,
+        UserRepository userRepository
     ) {
         this.productRepository = productRepository;
         this.batchRepository = batchRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -138,12 +144,23 @@ public class InventoryQueryService {
 
         List<Long> batchIds = txPage.getContent().stream().map(InventoryTransaction::getBatchId).distinct().toList();
         List<Long> productIds = txPage.getContent().stream().map(InventoryTransaction::getProductId).distinct().toList();
+        List<Long> operatorIds = txPage.getContent().stream()
+            .map(InventoryTransaction::getCreatedBy)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
 
         Map<Long, Batch> batchMap = loadBatchMap(batchIds);
         Map<Long, Product> productMap = loadProductMap(productIds);
+        Map<Long, User> operatorMap = loadUserMap(operatorIds);
 
         List<InventoryTransactionResponse> items = txPage.getContent().stream()
-            .map(tx -> toTransactionResponse(tx, batchMap.get(tx.getBatchId()), productMap.get(tx.getProductId())))
+            .map(tx -> toTransactionResponse(
+                tx,
+                batchMap.get(tx.getBatchId()),
+                productMap.get(tx.getProductId()),
+                operatorMap.get(tx.getCreatedBy())
+            ))
             .toList();
 
         return new TransactionPageResponse(
@@ -221,6 +238,14 @@ public class InventoryQueryService {
             .collect(Collectors.toMap(Batch::getId, b -> b));
     }
 
+    private Map<Long, User> loadUserMap(Collection<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userRepository.findAllById(userIds).stream()
+            .collect(Collectors.toMap(User::getId, user -> user));
+    }
+
     private StockSummaryResponse toStockSummary(Product product, long currentStock) {
         return new StockSummaryResponse(
             product.getId(),
@@ -252,7 +277,7 @@ public class InventoryQueryService {
     }
 
     private InventoryTransactionResponse toTransactionResponse(
-        InventoryTransaction tx, Batch batch, Product product
+        InventoryTransaction tx, Batch batch, Product product, User operator
     ) {
         return new InventoryTransactionResponse(
             tx.getId(),
@@ -269,8 +294,28 @@ public class InventoryQueryService {
             tx.getRelatedDocumentId(),
             tx.getNote(),
             tx.getCreatedAt(),
+            formatOperator(operator, tx.getCreatedBy()),
             tx.getCreatedBy()
         );
+    }
+
+    private String formatOperator(User user, Long operatorId) {
+        if (user == null) {
+            return operatorId == null ? "" : String.valueOf(operatorId);
+        }
+
+        String username = normalize(user.getUsername());
+        String fullName = normalize(user.getFullName());
+        if (fullName != null && username != null && !fullName.equals(username)) {
+            return fullName + " (" + username + ")";
+        }
+        if (fullName != null) {
+            return fullName;
+        }
+        if (username != null) {
+            return username;
+        }
+        return operatorId == null ? "" : String.valueOf(operatorId);
     }
 
     private String normalize(String value) {
