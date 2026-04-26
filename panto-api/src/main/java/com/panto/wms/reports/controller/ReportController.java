@@ -55,4 +55,27 @@ public class ReportController {
             .contentLength(reportFile.content().length)
             .body(new ByteArrayResource(reportFile.content()));
     }
+
+    /**
+     * 导出损耗报表。
+     *
+     * @param from 起始日期（含）
+     * @param to 结束日期（含）
+     * @param format 导出格式，支持 csv / xlsx
+     * @return 文件下载响应
+     */
+    @GetMapping("/losses/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    public ResponseEntity<ByteArrayResource> exportLosses(
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        @RequestParam(defaultValue = "xlsx") String format
+    ) {
+        ReportService.ReportFile reportFile = reportService.exportLosses(from, to, format);
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(reportFile.contentType()))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + reportFile.fileName() + "\"")
+            .contentLength(reportFile.content().length)
+            .body(new ByteArrayResource(reportFile.content()));
+    }
 }
