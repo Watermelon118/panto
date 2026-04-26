@@ -60,6 +60,9 @@ export function UsersPage() {
   const [newPassword, setNewPassword] = useState('');
   const [resetError, setResetError] = useState<string | null>(null);
 
+  const [statusTarget, setStatusTarget] = useState<UserSummary | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   const { data, isLoading } = useUsers({ page, size: 20 });
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -108,6 +111,17 @@ export function UsersPage() {
       setResetUserId(null);
     } catch (error) {
       setResetError(extractErrorMessage(error));
+    }
+  };
+
+  const handleConfirmStatusToggle = async () => {
+    if (!statusTarget) return;
+    setStatusError(null);
+    try {
+      await toggleStatus.mutateAsync({ id: statusTarget.id, active: !statusTarget.active });
+      setStatusTarget(null);
+    } catch (error) {
+      setStatusError(extractErrorMessage(error));
     }
   };
 
@@ -168,7 +182,10 @@ export function UsersPage() {
                   <td className="px-6 py-4">
                     <button
                       type="button"
-                      onClick={() => toggleStatus.mutate({ id: user.id, active: !user.active })}
+                      onClick={() => {
+                        setStatusError(null);
+                        setStatusTarget(user);
+                      }}
                       className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                         user.active
                           ? 'bg-emerald-400/15 text-emerald-400 hover:bg-emerald-400/25'
@@ -316,6 +333,52 @@ export function UsersPage() {
               </button>
               <button type="button" onClick={() => void handleSubmit()} disabled={isSaving} className="rounded-xl border border-amber-300 bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-900 transition hover:bg-amber-200 disabled:opacity-50">
                 {isSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Status toggle confirmation modal */}
+      {statusTarget && (
+        <Modal
+          title={statusTarget.active ? 'Disable User' : 'Enable User'}
+          onClose={() => setStatusTarget(null)}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-stone-300">
+              {statusTarget.active ? 'Disable' : 'Enable'} account{' '}
+              <span className="font-mono text-amber-300">{statusTarget.username}</span>
+              {statusTarget.active
+                ? '? They will no longer be able to log in.'
+                : '? They will be able to log in again.'}
+            </p>
+            {statusError && (
+              <p className="rounded-xl bg-red-900/30 px-4 py-3 text-sm text-red-400">{statusError}</p>
+            )}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setStatusTarget(null)}
+                className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-stone-400 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmStatusToggle()}
+                disabled={toggleStatus.isPending}
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                  statusTarget.active
+                    ? 'bg-red-500/90 text-white hover:bg-red-500'
+                    : 'bg-amber-300 text-stone-900 hover:bg-amber-200'
+                }`}
+              >
+                {toggleStatus.isPending
+                  ? 'Saving…'
+                  : statusTarget.active
+                    ? 'Disable'
+                    : 'Enable'}
               </button>
             </div>
           </div>

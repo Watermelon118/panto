@@ -72,7 +72,11 @@ export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createProduct,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
   });
 }
 
@@ -81,7 +85,11 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: ({ id, request }: { id: number; request: UpdateProductRequest }) =>
       updateProduct(id, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
   });
 }
 
@@ -90,6 +98,10 @@ export function useUpdateProductStatus() {
   return useMutation({
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
       updateProductStatus(id, active),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
   });
 }

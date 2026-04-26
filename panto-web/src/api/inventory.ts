@@ -35,7 +35,7 @@ export function useStockSummary(params: StockParams) {
   return useQuery({
     queryKey: ['inventory', 'stock', params],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: StockPage }>('/api/v1/inventory', { params });
+      const { data } = await apiClient.get<{ data: StockPage }>('/inventory', { params });
       return data.data;
     },
   });
@@ -45,7 +45,7 @@ export function useBatches(params: BatchParams) {
   return useQuery({
     queryKey: ['inventory', 'batches', params],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: BatchPage }>('/api/v1/inventory/batches', {
+      const { data } = await apiClient.get<{ data: BatchPage }>('/inventory/batches', {
         params,
       });
       return data.data;
@@ -58,7 +58,7 @@ export function useTransactions(params: TransactionParams) {
     queryKey: ['inventory', 'transactions', params],
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: TransactionPage }>(
-        '/api/v1/inventory/transactions',
+        '/inventory/transactions',
         { params },
       );
       return data.data;
@@ -70,7 +70,7 @@ export function useLowStockProducts() {
   return useQuery({
     queryKey: ['inventory', 'low-stock'],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: StockSummary[] }>('/api/v1/inventory/low-stock');
+      const { data } = await apiClient.get<{ data: StockSummary[] }>('/inventory/low-stock');
       return data.data;
     },
   });
@@ -80,7 +80,7 @@ export function useExpiringBatches(withinDays = 30) {
   return useQuery({
     queryKey: ['inventory', 'expiring', withinDays],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: BatchItem[] }>('/api/v1/inventory/expiring', {
+      const { data } = await apiClient.get<{ data: BatchItem[] }>('/inventory/expiring', {
         params: { withinDays },
       });
       return data.data;

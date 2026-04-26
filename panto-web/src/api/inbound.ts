@@ -54,7 +54,13 @@ export function useCreateInbound() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createInbound,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inbounds'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbounds'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }
 
@@ -63,6 +69,12 @@ export function useUpdateInbound() {
   return useMutation({
     mutationFn: ({ id, request }: { id: number; request: UpdateInboundRequest }) =>
       updateInbound(id, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inbounds'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbounds'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }

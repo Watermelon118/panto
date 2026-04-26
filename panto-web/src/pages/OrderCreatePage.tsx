@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomers } from '../api/customers';
+import { useBatches } from '../api/inventory';
 import { useCreateOrder } from '../api/orders';
 import { useProducts } from '../api/products';
+import type { BatchItem, ExpiryStatus } from '../types/inventory';
 import type { CreateOrderRequest } from '../types/order';
 import type { ProductSummary } from '../types/product';
 import { extractErrorMessage } from '../utils/error';
@@ -64,6 +66,34 @@ function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
+function ExpiryChip({
+  status,
+  expiryDate,
+  batchNumber,
+}: {
+  status: ExpiryStatus;
+  expiryDate: string;
+  batchNumber: string;
+}) {
+  if (status === 'NORMAL') {
+    return null;
+  }
+  const isExpired = status === 'EXPIRED';
+  const labelClass = isExpired
+    ? 'bg-red-500/15 text-red-400 border-red-500/40'
+    : 'bg-amber-300/15 text-amber-300 border-amber-300/40';
+  const label = isExpired ? 'EXPIRED' : 'EXPIRING SOON';
+  return (
+    <p
+      className={`mt-2 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${labelClass}`}
+      title={`FIFO will deduct from batch ${batchNumber}`}
+    >
+      <span>{label}</span>
+      <span className="text-stone-300/80">{batchNumber} · {expiryDate}</span>
+    </p>
+  );
+}
+
 function getEffectiveUnitPrice(item: DraftOrderItem, product?: ProductSummary) {
   if (item.unitPrice.trim() !== '') {
     return Number(item.unitPrice);
@@ -90,6 +120,7 @@ export function OrderCreatePage() {
     page: 0,
     size: 100,
   });
+  const batchesQuery = useBatches({ page: 0, size: 500 });
 
   const customerItems = customersQuery.data?.items;
   const productItems = productsQuery.data?.items;
@@ -100,6 +131,17 @@ export function OrderCreatePage() {
     () => new Map((productItems ?? []).map((product) => [product.id, product])),
     [productItems],
   );
+  const nextFifoBatchByProduct = useMemo(() => {
+    const map = new Map<number, BatchItem>();
+    for (const batch of batchesQuery.data?.items ?? []) {
+      if (batch.quantityRemaining <= 0) continue;
+      const existing = map.get(batch.productId);
+      if (!existing || batch.expiryDate < existing.expiryDate) {
+        map.set(batch.productId, batch);
+      }
+    }
+    return map;
+  }, [batchesQuery.data]);
   const hasBlockingData = !!queryError || customers.length === 0 || products.length === 0;
 
   const orderPreview = useMemo(() => {
@@ -320,6 +362,9 @@ export function OrderCreatePage() {
                     const product = selectedProduct ?? EMPTY_PRODUCT;
                     const effectiveUnitPrice = getEffectiveUnitPrice(item, product);
                     const lineTotal = effectiveUnitPrice * item.quantity;
+                    const fifoBatch = hasProduct
+                      ? nextFifoBatchByProduct.get(item.productId)
+                      : undefined;
 
                     return (
                       <tr key={index} className="border-b border-white/5 align-top">
@@ -356,12 +401,13 @@ export function OrderCreatePage() {
                               {product.specification ? ` | ${product.specification}` : ''}
                             </p>
                           )}
-                          {/*
-                            <p className="mt-2 text-xs text-stone-500">
-                              {product.category} · {product.unit}
-                              {product.specification ? ` · ${product.specification}` : ''}
-                            </p>
-                          */}
+                          {fifoBatch && (
+                            <ExpiryChip
+                              status={fifoBatch.expiryStatus}
+                              expiryDate={fifoBatch.expiryDate}
+                              batchNumber={fifoBatch.batchNumber}
+                            />
+                          )}
                         </td>
                         <td className="py-3 pr-4 min-w-[110px]">
                           <input

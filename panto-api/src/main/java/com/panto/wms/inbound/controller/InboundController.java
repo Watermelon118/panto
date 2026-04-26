@@ -54,7 +54,7 @@ public class InboundController {
      * @return 分页入库单列表
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE')")
     public Result<InboundPageResponse> listInbounds(
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
@@ -72,7 +72,7 @@ public class InboundController {
      * @return 入库单详情
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAREHOUSE')")
     public Result<InboundDetailResponse> getInbound(@PathVariable Long id) {
         return Result.success(inboundService.getInbound(id));
     }
