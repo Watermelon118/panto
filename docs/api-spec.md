@@ -1928,6 +1928,199 @@ HTTP Status: `400 Bad Request`
 
 - Roles: `ADMIN`, `WAREHOUSE`
 
+## Reports APIs
+
+File export endpoints return raw file downloads instead of the standard `Result<T>` envelope. This keeps frontend blob downloads straightforward for CSV/XLSX exports.
+
+### GET `/reports/sales/export`
+
+Export active sales records within a date range as CSV or Excel.
+
+#### Query Parameters
+
+- `from`: required, format `yyyy-MM-dd`, inclusive start date
+- `to`: required, format `yyyy-MM-dd`, inclusive end date
+- `format`: optional, `csv` or `xlsx`, default `xlsx`
+
+#### Response
+
+HTTP Status: `200 OK`
+
+Content types:
+
+- `text/csv; charset=UTF-8`
+- `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+File naming pattern:
+
+- `sales-report-<from>-to-<to>.csv`
+- `sales-report-<from>-to-<to>.xlsx`
+
+#### Export Columns
+
+- `orderNumber`
+- `orderCreatedAt`
+- `customerCompanyName`
+- `productSku`
+- `productName`
+- `quantity`
+- `unitPrice`
+- `subtotal`
+- `gstAmount`
+- `lineTotal`
+- `operatorId`
+
+#### Business Rules
+
+- Only `ACTIVE` orders are exported
+- One row is produced per persisted `order_item`
+- `lineTotal = subtotal + gstAmount`
+- Empty result sets still return a file with header row(s)
+
+#### Failure Responses
+
+Validation failure:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "from must be on or before to",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `ACCOUNTANT`
+
+### GET `/reports/losses/export`
+
+Export destruction loss records within a date range as CSV or Excel.
+
+#### Query Parameters
+
+- `from`: required, format `yyyy-MM-dd`, inclusive start date
+- `to`: required, format `yyyy-MM-dd`, inclusive end date
+- `format`: optional, `csv` or `xlsx`, default `xlsx`
+
+#### Response
+
+HTTP Status: `200 OK`
+
+Content types:
+
+- `text/csv; charset=UTF-8`
+- `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+File naming pattern:
+
+- `loss-report-<from>-to-<to>.csv`
+- `loss-report-<from>-to-<to>.xlsx`
+
+#### Export Columns
+
+- `destructionNumber`
+- `destructionCreatedAt`
+- `productSku`
+- `productName`
+- `batchNumber`
+- `quantityDestroyed`
+- `purchaseUnitPrice`
+- `lossAmount`
+- `operatorId`
+- `reason`
+
+#### Business Rules
+
+- One row is produced per destruction record
+- `lossAmount` uses the persisted snapshot value on the destruction row
+- Empty result sets still return a file with header row(s)
+
+#### Failure Responses
+
+Validation failure:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "from and to are required",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `ACCOUNTANT`
+
+## Dashboard APIs
+
+### GET `/dashboard/summary`
+
+Return role-aware dashboard summary data for the current authenticated user.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "role": "ADMIN",
+    "warnings": {
+      "lowStockCount": 2,
+      "expiringSoonCount": 3,
+      "expiredCount": 1
+    },
+    "managerSummary": {
+      "todaySalesTotal": 1280.50,
+      "monthSalesTotal": 5666.80,
+      "pendingTaskCount": 6,
+      "topProducts": [
+        {
+          "productId": 5,
+          "productSku": "DUMP001",
+          "productName": "Frozen Dumplings",
+          "quantitySold": 24,
+          "salesAmount": 552.00
+        }
+      ]
+    },
+    "warehouseSummary": null,
+    "accountantSummary": null
+  }
+}
+```
+
+#### Role-specific Fields
+
+- `warnings`: always returned for all roles
+- `managerSummary`: returned for `ADMIN` and `MARKETING`
+- `warehouseSummary`: returned for `WAREHOUSE`
+- `accountantSummary`: returned for `ACCOUNTANT`
+
+#### Field Semantics
+
+- `warnings.lowStockCount`: number of active products below safety stock
+- `warnings.expiringSoonCount`: number of active batches with `EXPIRING_SOON`
+- `warnings.expiredCount`: number of active batches with `EXPIRED`
+- `managerSummary.pendingTaskCount`: `lowStockCount + expiringSoonCount + expiredCount`
+- `managerSummary.topProducts`: current-month top 10 sold products ranked by quantity, then sales amount
+- `warehouseSummary.todayInboundCount`: number of inbound records dated today
+- `warehouseSummary.todayOutboundCount`: number of active orders created today
+- `warehouseSummary.pendingDestructionCount`: number of expired batches still holding stock
+- `accountantSummary.monthSalesTotal`: current-month active order total
+- `accountantSummary.monthLossTotal`: current-month destruction loss total
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
 ## Settings APIs
 
 System-wide configuration values, e.g. expiry-warning threshold consumed by the daily expiry scan and dashboard widgets. Only the manager role may read or modify settings.
