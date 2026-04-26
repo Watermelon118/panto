@@ -1,3 +1,11 @@
+export interface CustomerOrderHistoryItem {
+  id: number;
+  orderNumber: string;
+  status: 'ACTIVE' | 'ROLLED_BACK';
+  totalAmount: number;
+  createdAt: string;
+}
+
 export interface CustomerSummary {
   id: number;
   companyName: string;
@@ -11,6 +19,9 @@ export interface Customer extends CustomerSummary {
   address: string | null;
   gstNumber: string | null;
   remarks: string | null;
+  cumulativeSpend: number;
+  totalOrderCount: number;
+  orderHistory: CustomerOrderHistoryItem[];
   createdAt: string;
   updatedAt: string;
   createdBy: number;

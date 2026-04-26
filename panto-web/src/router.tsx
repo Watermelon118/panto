@@ -4,6 +4,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { BatchListPage } from './pages/BatchListPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DestructionCreatePage } from './pages/DestructionCreatePage';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
           { path: '/audit-logs', element: <AuditLogsPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/customers', element: <CustomersPage /> },
+          { path: '/customers/:id', element: <CustomerDetailPage /> },
           { path: '/orders', element: <OrdersPage /> },
           { path: '/orders/new', element: <OrderCreatePage /> },
           { path: '/orders/:id', element: <OrderDetailPage /> },

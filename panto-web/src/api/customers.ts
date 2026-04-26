@@ -47,10 +47,11 @@ export function useCustomers(params: ListCustomersParams) {
   });
 }
 
-export function useCustomer(id: number) {
+export function useCustomer(id: number | null, enabled = true) {
   return useQuery({
     queryKey: ['customers', id],
-    queryFn: () => fetchCustomer(id),
+    queryFn: () => fetchCustomer(id as number),
+    enabled: enabled && id !== null,
   });
 }
 

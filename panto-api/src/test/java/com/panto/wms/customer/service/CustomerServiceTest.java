@@ -16,6 +16,10 @@ import com.panto.wms.customer.dto.CustomerResponse;
 import com.panto.wms.customer.dto.UpdateCustomerRequest;
 import com.panto.wms.customer.entity.Customer;
 import com.panto.wms.customer.repository.CustomerRepository;
+import com.panto.wms.order.domain.OrderStatus;
+import com.panto.wms.order.entity.Order;
+import com.panto.wms.order.repository.OrderRepository;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +43,9 @@ class CustomerServiceTest {
     @Mock
     private CustomerRepository customerRepository;
 
+    @Mock
+    private OrderRepository orderRepository;
+
     @InjectMocks
     private CustomerService customerService;
 
@@ -51,6 +58,7 @@ class CustomerServiceTest {
         Customer savedCustomer = buildCustomer(1L, "Panto Trading Ltd");
 
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        mockEmptyOrderHistory(1L);
 
         CustomerResponse response = customerService.createCustomer(request, 7L);
 
@@ -90,6 +98,7 @@ class CustomerServiceTest {
 
         when(customerRepository.findById(1L)).thenReturn(Optional.of(existingCustomer));
         when(customerRepository.save(any(Customer.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        mockEmptyOrderHistory(1L);
 
         CustomerResponse response = customerService.updateCustomer(1L, request, 11L);
 
@@ -124,10 +133,38 @@ class CustomerServiceTest {
     }
 
     @Test
+    void getCustomerShouldReturnOrderHistoryAndCumulativeSpend() {
+        Customer customer = buildCustomer(1L, "Panto Trading Ltd");
+        Order order = new Order();
+        order.setId(300L);
+        order.setOrderNumber("ORD-20260426-001");
+        order.setStatus(OrderStatus.ACTIVE);
+        order.setTotalAmount(new BigDecimal("276.00"));
+        order.setCreatedAt(OffsetDateTime.parse("2026-04-26T10:00:00+12:00"));
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(orderRepository.findByCustomerId(
+            1L,
+            PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
+        )).thenReturn(new PageImpl<>(List.of(order), PageRequest.of(0, 20), 1));
+        when(orderRepository.sumTotalAmountByCustomerIdAndStatus(1L, OrderStatus.ACTIVE))
+            .thenReturn(new BigDecimal("276.00"));
+
+        CustomerResponse response = customerService.getCustomer(1L);
+
+        assertEquals(new BigDecimal("276.00"), response.cumulativeSpend());
+        assertEquals(1L, response.totalOrderCount());
+        assertEquals(1, response.orderHistory().size());
+        assertEquals("ORD-20260426-001", response.orderHistory().getFirst().orderNumber());
+        assertEquals(OrderStatus.ACTIVE, response.orderHistory().getFirst().status());
+    }
+
+    @Test
     void updateCustomerStatusShouldPersistActiveFlag() {
         Customer existingCustomer = buildCustomer(1L, "Panto Trading Ltd");
         when(customerRepository.findById(1L)).thenReturn(Optional.of(existingCustomer));
         when(customerRepository.save(any(Customer.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        mockEmptyOrderHistory(1L);
 
         CustomerResponse response = customerService.updateCustomerStatus(1L, false, 15L);
 
@@ -187,5 +224,14 @@ class CustomerServiceTest {
         customer.setCreatedBy(1L);
         customer.setUpdatedBy(1L);
         return customer;
+    }
+
+    private void mockEmptyOrderHistory(Long customerId) {
+        when(orderRepository.findByCustomerId(
+            customerId,
+            PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
+        )).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        when(orderRepository.sumTotalAmountByCustomerIdAndStatus(customerId, OrderStatus.ACTIVE))
+            .thenReturn(BigDecimal.ZERO);
     }
 }

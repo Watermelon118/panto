@@ -5,12 +5,17 @@ import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.customer.dto.CreateCustomerRequest;
+import com.panto.wms.customer.dto.CustomerOrderHistoryResponse;
 import com.panto.wms.customer.dto.CustomerPageResponse;
 import com.panto.wms.customer.dto.CustomerResponse;
 import com.panto.wms.customer.dto.CustomerSummaryResponse;
 import com.panto.wms.customer.dto.UpdateCustomerRequest;
 import com.panto.wms.customer.entity.Customer;
 import com.panto.wms.customer.repository.CustomerRepository;
+import com.panto.wms.order.domain.OrderStatus;
+import com.panto.wms.order.entity.Order;
+import com.panto.wms.order.repository.OrderRepository;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -25,15 +30,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CustomerService {
 
+    private static final int ORDER_HISTORY_LIMIT = 20;
+
     private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
 
     /**
      * 创建客户服务。
      *
      * @param customerRepository 客户数据访问接口
+     * @param orderRepository 订单数据访问接口
      */
-    public CustomerService(CustomerRepository customerRepository) {
+    public CustomerService(CustomerRepository customerRepository, OrderRepository orderRepository) {
         this.customerRepository = customerRepository;
+        this.orderRepository = orderRepository;
     }
 
     /**
@@ -71,7 +81,7 @@ public class CustomerService {
      */
     @Transactional(readOnly = true)
     public CustomerResponse getCustomer(Long customerId) {
-        return toResponse(findCustomerOrThrow(customerId));
+        return buildCustomerResponse(findCustomerOrThrow(customerId));
     }
 
     /**
@@ -109,7 +119,7 @@ public class CustomerService {
         customer.setCreatedBy(operatorId);
         customer.setUpdatedBy(operatorId);
 
-        return toResponse(customerRepository.save(customer));
+        return buildCustomerResponse(customerRepository.save(customer));
     }
 
     /**
@@ -144,7 +154,7 @@ public class CustomerService {
         customer.setUpdatedAt(OffsetDateTime.now());
         customer.setUpdatedBy(operatorId);
 
-        return toResponse(customerRepository.save(customer));
+        return buildCustomerResponse(customerRepository.save(customer));
     }
 
     /**
@@ -169,7 +179,7 @@ public class CustomerService {
         customer.setUpdatedAt(OffsetDateTime.now());
         customer.setUpdatedBy(operatorId);
 
-        return toResponse(customerRepository.save(customer));
+        return buildCustomerResponse(customerRepository.save(customer));
     }
 
     private Customer findCustomerOrThrow(Long customerId) {
@@ -207,7 +217,32 @@ public class CustomerService {
         );
     }
 
-    private CustomerResponse toResponse(Customer customer) {
+    private CustomerResponse buildCustomerResponse(Customer customer) {
+        PageRequest orderHistoryPageRequest = PageRequest.of(
+            0,
+            ORDER_HISTORY_LIMIT,
+            Sort.by(Sort.Direction.DESC, "createdAt", "id")
+        );
+        Page<Order> orderHistory = orderRepository.findByCustomerId(customer.getId(), orderHistoryPageRequest);
+        BigDecimal cumulativeSpend = orderRepository.sumTotalAmountByCustomerIdAndStatus(
+            customer.getId(),
+            OrderStatus.ACTIVE
+        );
+
+        return toResponse(
+            customer,
+            orderHistory.getContent().stream().map(this::toOrderHistoryResponse).toList(),
+            cumulativeSpend == null ? BigDecimal.ZERO : cumulativeSpend,
+            orderHistory.getTotalElements()
+        );
+    }
+
+    private CustomerResponse toResponse(
+        Customer customer,
+        List<CustomerOrderHistoryResponse> orderHistory,
+        BigDecimal cumulativeSpend,
+        long totalOrderCount
+    ) {
         return new CustomerResponse(
             customer.getId(),
             customer.getCompanyName(),
@@ -218,10 +253,23 @@ public class CustomerService {
             customer.getGstNumber(),
             customer.getRemarks(),
             customer.getActive(),
+            cumulativeSpend,
+            totalOrderCount,
+            orderHistory,
             customer.getCreatedAt(),
             customer.getUpdatedAt(),
             customer.getCreatedBy(),
             customer.getUpdatedBy()
+        );
+    }
+
+    private CustomerOrderHistoryResponse toOrderHistoryResponse(Order order) {
+        return new CustomerOrderHistoryResponse(
+            order.getId(),
+            order.getOrderNumber(),
+            order.getStatus(),
+            order.getTotalAmount(),
+            order.getCreatedAt()
         );
     }
 

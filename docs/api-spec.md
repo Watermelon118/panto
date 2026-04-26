@@ -723,6 +723,17 @@ HTTP Status: `200 OK`
     "gstNumber": "GST-7788",
     "remarks": "Preferred morning delivery",
     "active": true,
+    "cumulativeSpend": 276.00,
+    "totalOrderCount": 2,
+    "orderHistory": [
+      {
+        "id": 500,
+        "orderNumber": "ORD-20260425-001",
+        "status": "ACTIVE",
+        "totalAmount": 276.00,
+        "createdAt": "2026-04-25T10:00:00Z"
+      }
+    ],
     "createdAt": "2026-04-25T08:00:00Z",
     "updatedAt": "2026-04-25T10:30:00Z",
     "createdBy": 1,
@@ -747,8 +758,9 @@ HTTP Status: `400 Bad Request`
 
 #### Notes
 
-- Milestone 2 currently returns customer base information only
-- Order history will be added when the order module is implemented
+- `cumulativeSpend` only sums `ACTIVE` orders
+- `orderHistory` returns the most recent 20 orders for the customer
+- `totalOrderCount` lets the frontend show whether additional historical orders exist beyond the current payload
 
 #### Access Rules
 
