@@ -19,6 +19,7 @@ public class JwtTokenProvider {
 
     private static final String CLAIM_USER_ID = "uid";
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_MUST_CHANGE_PASSWORD = "must_change_password";
     private static final String CLAIM_TOKEN_TYPE = "typ";
     private static final String TOKEN_TYPE_ACCESS = "access";
     private static final String TOKEN_TYPE_REFRESH = "refresh";
@@ -86,8 +87,9 @@ public class JwtTokenProvider {
         Long userId = claims.get(CLAIM_USER_ID, Long.class);
         String username = claims.getSubject();
         UserRole role = UserRole.valueOf(claims.get(CLAIM_ROLE, String.class));
+        Boolean mustChangePassword = claims.get(CLAIM_MUST_CHANGE_PASSWORD, Boolean.class);
 
-        return new AuthenticatedUser(userId, username, role, true);
+        return new AuthenticatedUser(userId, username, role, true, Boolean.TRUE.equals(mustChangePassword));
     }
 
     /**
@@ -112,8 +114,9 @@ public class JwtTokenProvider {
         Long userId = claims.get(CLAIM_USER_ID, Long.class);
         String username = claims.getSubject();
         UserRole role = UserRole.valueOf(claims.get(CLAIM_ROLE, String.class));
+        Boolean mustChangePassword = claims.get(CLAIM_MUST_CHANGE_PASSWORD, Boolean.class);
 
-        return new AuthenticatedUser(userId, username, role, true);
+        return new AuthenticatedUser(userId, username, role, true, Boolean.TRUE.equals(mustChangePassword));
     }
 
     private String buildToken(AuthenticatedUser user, String tokenType) {
@@ -125,6 +128,7 @@ public class JwtTokenProvider {
             .subject(user.getUsername())
             .claim(CLAIM_USER_ID, user.getUserId())
             .claim(CLAIM_ROLE, user.getRole().name())
+            .claim(CLAIM_MUST_CHANGE_PASSWORD, user.isMustChangePassword())
             .claim(CLAIM_TOKEN_TYPE, tokenType)
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiresAt))

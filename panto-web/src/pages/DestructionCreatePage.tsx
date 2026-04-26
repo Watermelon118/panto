@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCreateDestruction } from '../api/destruction';
 import { useBatches } from '../api/inventory';
 import { useProducts } from '../api/products';
@@ -44,10 +44,18 @@ function resolveSelectedBatch(batches: BatchItem[], batchId: number | undefined)
 
 export function DestructionCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const createDestruction = useCreateDestruction();
 
-  const [productId, setProductId] = useState<number | undefined>(undefined);
-  const [batchId, setBatchId] = useState<number | undefined>(undefined);
+  const initialProductId = Number(searchParams.get('productId'));
+  const initialBatchId = Number(searchParams.get('batchId'));
+
+  const [productId, setProductId] = useState<number | undefined>(
+    Number.isFinite(initialProductId) && initialProductId > 0 ? initialProductId : undefined,
+  );
+  const [batchId, setBatchId] = useState<number | undefined>(
+    Number.isFinite(initialBatchId) && initialBatchId > 0 ? initialBatchId : undefined,
+  );
   const [quantityDestroyed, setQuantityDestroyed] = useState('1');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);

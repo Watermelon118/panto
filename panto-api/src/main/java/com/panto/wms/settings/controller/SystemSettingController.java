@@ -42,7 +42,7 @@ public class SystemSettingController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public Result<SystemSettingsResponse> getSettings() {
-        return Result.success(new SystemSettingsResponse(systemSettingService.getExpiryWarningDays()));
+        return Result.success(toResponse());
     }
 
     /**
@@ -63,6 +63,48 @@ public class SystemSettingController {
             String.valueOf(request.expiryWarningDays()),
             authenticatedUser.getUserId()
         );
-        return Result.success(new SystemSettingsResponse(systemSettingService.getExpiryWarningDays()));
+        systemSettingService.update(
+            SystemSettingService.KEY_INVOICE_SELLER_COMPANY_NAME,
+            request.invoiceSellerCompanyName(),
+            authenticatedUser.getUserId()
+        );
+        systemSettingService.update(
+            SystemSettingService.KEY_INVOICE_SELLER_GST_NUMBER,
+            request.invoiceSellerGstNumber(),
+            authenticatedUser.getUserId()
+        );
+        systemSettingService.update(
+            SystemSettingService.KEY_INVOICE_SELLER_ADDRESS,
+            request.invoiceSellerAddress(),
+            authenticatedUser.getUserId()
+        );
+        systemSettingService.update(
+            SystemSettingService.KEY_INVOICE_SELLER_PHONE,
+            request.invoiceSellerPhone(),
+            authenticatedUser.getUserId()
+        );
+        systemSettingService.update(
+            SystemSettingService.KEY_INVOICE_SELLER_EMAIL,
+            request.invoiceSellerEmail(),
+            authenticatedUser.getUserId()
+        );
+        systemSettingService.update(
+            SystemSettingService.KEY_INVOICE_PAYMENT_INSTRUCTIONS,
+            request.invoicePaymentInstructions(),
+            authenticatedUser.getUserId()
+        );
+        return Result.success(toResponse());
+    }
+
+    private SystemSettingsResponse toResponse() {
+        return new SystemSettingsResponse(
+            systemSettingService.getExpiryWarningDays(),
+            systemSettingService.getInvoiceSellerCompanyName(),
+            systemSettingService.getInvoiceSellerGstNumber(),
+            systemSettingService.getInvoiceSellerAddress(),
+            systemSettingService.getInvoiceSellerPhone(),
+            systemSettingService.getInvoiceSellerEmail(),
+            systemSettingService.getInvoicePaymentInstructions()
+        );
     }
 }

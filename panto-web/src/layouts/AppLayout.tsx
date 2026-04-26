@@ -13,6 +13,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
+  { to: '/audit-logs', label: 'Audit Logs', roles: ['ADMIN'] },
   { to: '/products', label: 'Products', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING', 'ACCOUNTANT'] },
   { to: '/customers', label: 'Customers', roles: ['ADMIN', 'MARKETING'] },
   { to: '/orders', label: 'Orders', roles: ['ADMIN', 'WAREHOUSE', 'MARKETING'] },
@@ -58,6 +59,11 @@ export function AppLayout() {
   const lowStockCount = dashboardQuery.data?.warnings.lowStockCount ?? 0;
   const totalWarningCount = expiryWarningCount + expiredCount + lowStockCount;
   const warningTarget = getWarningTarget(expiryWarningCount, expiredCount, lowStockCount);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   useEffect(() => {
     if (!user?.username || !dashboardQuery.data || totalWarningCount <= 0) {
@@ -115,7 +121,7 @@ export function AppLayout() {
             */}
             <button
               type="button"
-              onClick={logout}
+              onClick={() => void handleLogout()}
               className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/20"
             >
               Sign Out

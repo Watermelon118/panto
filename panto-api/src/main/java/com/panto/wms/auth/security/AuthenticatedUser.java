@@ -17,6 +17,7 @@ public class AuthenticatedUser implements UserDetails {
     private final String username;
     private final UserRole role;
     private final boolean active;
+    private final boolean mustChangePassword;
 
     /**
      * 创建认证用户对象。
@@ -25,12 +26,20 @@ public class AuthenticatedUser implements UserDetails {
      * @param username 用户名
      * @param role 用户角色
      * @param active 用户是否启用
+     * @param mustChangePassword 是否必须修改密码
      */
-    public AuthenticatedUser(Long userId, String username, UserRole role, boolean active) {
+    public AuthenticatedUser(
+        Long userId,
+        String username,
+        UserRole role,
+        boolean active,
+        boolean mustChangePassword
+    ) {
         this.userId = userId;
         this.username = username;
         this.role = role;
         this.active = active;
+        this.mustChangePassword = mustChangePassword;
     }
 
     /**
@@ -44,7 +53,8 @@ public class AuthenticatedUser implements UserDetails {
             user.getId(),
             user.getUsername(),
             user.getRole(),
-            Boolean.TRUE.equals(user.getActive())
+            Boolean.TRUE.equals(user.getActive()),
+            Boolean.TRUE.equals(user.getMustChangePassword())
         );
     }
 
@@ -64,6 +74,15 @@ public class AuthenticatedUser implements UserDetails {
      */
     public UserRole getRole() {
         return role;
+    }
+
+    /**
+     * 返回当前用户是否必须先修改密码。
+     *
+     * @return 是否必须修改密码
+     */
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
     }
 
     @Override

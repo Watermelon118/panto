@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   useCreateCustomer,
+  useCustomer,
   useCustomers,
   useUpdateCustomer,
   useUpdateCustomerStatus,
 } from '../api/customers';
 import { Modal } from '../components/Modal';
 import { Pagination } from '../components/Pagination';
-import type { CreateCustomerRequest, CustomerSummary } from '../types/customer';
+import type { CreateCustomerRequest } from '../types/customer';
 import { extractErrorMessage } from '../utils/error';
 
 const inputCls =
@@ -36,6 +38,7 @@ const EMPTY_FORM: CreateCustomerRequest = {
 };
 
 export function CustomersPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [keyword, setKeyword] = useState('');
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
@@ -54,30 +57,48 @@ export function CustomersPage() {
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const toggleStatus = useUpdateCustomerStatus();
+  const editingCustomerQuery = useCustomer(editingId, modalMode === 'edit');
 
   const setField = <K extends keyof CreateCustomerRequest>(key: K, value: CreateCustomerRequest[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const closeModal = () => {
+    setModalMode(null);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+  };
+
   const openCreate = () => {
     setForm(EMPTY_FORM);
     setFormError(null);
+    setEditingId(null);
     setModalMode('create');
   };
 
-  const openEdit = (customer: CustomerSummary) => {
-    setEditingId(customer.id);
+  const openEdit = (customerId: number) => {
+    setEditingId(customerId);
+    setForm(EMPTY_FORM);
+    setFormError(null);
+    setModalMode('edit');
+  };
+
+  useEffect(() => {
+    if (modalMode !== 'edit' || !editingCustomerQuery.data) {
+      return;
+    }
+
+    const customer = editingCustomerQuery.data;
     setForm({
       companyName: customer.companyName,
       contactPerson: customer.contactPerson ?? '',
       phone: customer.phone ?? '',
       email: customer.email ?? '',
-      address: '',
-      gstNumber: '',
-      remarks: '',
+      address: customer.address ?? '',
+      gstNumber: customer.gstNumber ?? '',
+      remarks: customer.remarks ?? '',
     });
-    setFormError(null);
-    setModalMode('edit');
-  };
+  }, [editingCustomerQuery.data, modalMode]);
 
   const handleSubmit = async () => {
     setFormError(null);
@@ -87,7 +108,7 @@ export function CustomersPage() {
       } else if (editingId !== null) {
         await updateCustomer.mutateAsync({ id: editingId, request: form });
       }
-      setModalMode(null);
+      closeModal();
     } catch (error) {
       setFormError(extractErrorMessage(error));
     }
@@ -173,13 +194,22 @@ export function CustomersPage() {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(customer)}
-                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-400 transition hover:bg-white/10 hover:text-stone-100"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/customers/${customer.id}`)}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-stone-300 transition hover:bg-white/10 hover:text-stone-100"
+                      >
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(customer.id)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-400 transition hover:bg-white/10 hover:text-stone-100"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -201,93 +231,110 @@ export function CustomersPage() {
       {modalMode && (
         <Modal
           title={modalMode === 'create' ? 'New Customer' : 'Edit Customer'}
-          onClose={() => setModalMode(null)}
+          onClose={closeModal}
         >
-          <div className="space-y-4">
-            <Field label="Company Name" required>
-              <input
-                value={form.companyName}
-                onChange={(e) => setField('companyName', e.target.value)}
-                className={inputCls}
-                placeholder="Panto Trading Ltd"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Contact Person">
-                <input
-                  value={form.contactPerson ?? ''}
-                  onChange={(e) => setField('contactPerson', e.target.value)}
-                  className={inputCls}
-                  placeholder="Alex Chen"
-                />
-              </Field>
-              <Field label="Phone">
-                <input
-                  value={form.phone ?? ''}
-                  onChange={(e) => setField('phone', e.target.value)}
-                  className={inputCls}
-                  placeholder="021 888 999"
-                />
-              </Field>
-            </div>
-            <Field label="Email">
-              <input
-                type="email"
-                value={form.email ?? ''}
-                onChange={(e) => setField('email', e.target.value)}
-                className={inputCls}
-                placeholder="alex@panto.co.nz"
-              />
-            </Field>
-            <Field label="Address">
-              <input
-                value={form.address ?? ''}
-                onChange={(e) => setField('address', e.target.value)}
-                className={inputCls}
-                placeholder="99 Queen Street, Auckland"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="GST Number">
-                <input
-                  value={form.gstNumber ?? ''}
-                  onChange={(e) => setField('gstNumber', e.target.value)}
-                  className={inputCls}
-                  placeholder="GST-7788"
-                />
-              </Field>
-              <Field label="Remarks">
-                <input
-                  value={form.remarks ?? ''}
-                  onChange={(e) => setField('remarks', e.target.value)}
-                  className={inputCls}
-                  placeholder="Morning delivery preferred"
-                />
-              </Field>
-            </div>
-            {formError && (
+          {modalMode === 'edit' && editingCustomerQuery.isLoading ? (
+            <div className="py-12 text-center text-sm text-stone-500">Loading customer details...</div>
+          ) : modalMode === 'edit' && editingCustomerQuery.error ? (
+            <div className="space-y-4">
               <p className="rounded-xl bg-red-900/30 px-4 py-3 text-sm text-red-400">
-                {formError}
+                {extractErrorMessage(editingCustomerQuery.error)}
               </p>
-            )}
-            <div className="mt-2 space-y-2">
               <button
                 type="button"
-                onClick={() => void handleSubmit()}
-                disabled={isSaving}
-                className="w-full rounded-xl border border-amber-300 bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-900 transition hover:bg-amber-200 disabled:opacity-50"
-              >
-                {isSaving ? 'Saving…' : 'Save'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setModalMode(null)}
+                onClick={closeModal}
                 className="w-full rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-stone-400 transition hover:bg-white/10"
               >
-                Cancel
+                Close
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <Field label="Company Name" required>
+                <input
+                  value={form.companyName}
+                  onChange={(e) => setField('companyName', e.target.value)}
+                  className={inputCls}
+                  placeholder="Panto Trading Ltd"
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Contact Person">
+                  <input
+                    value={form.contactPerson ?? ''}
+                    onChange={(e) => setField('contactPerson', e.target.value)}
+                    className={inputCls}
+                    placeholder="Alex Chen"
+                  />
+                </Field>
+                <Field label="Phone">
+                  <input
+                    value={form.phone ?? ''}
+                    onChange={(e) => setField('phone', e.target.value)}
+                    className={inputCls}
+                    placeholder="021 888 999"
+                  />
+                </Field>
+              </div>
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={form.email ?? ''}
+                  onChange={(e) => setField('email', e.target.value)}
+                  className={inputCls}
+                  placeholder="alex@panto.co.nz"
+                />
+              </Field>
+              <Field label="Address">
+                <input
+                  value={form.address ?? ''}
+                  onChange={(e) => setField('address', e.target.value)}
+                  className={inputCls}
+                  placeholder="99 Queen Street, Auckland"
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="GST Number">
+                  <input
+                    value={form.gstNumber ?? ''}
+                    onChange={(e) => setField('gstNumber', e.target.value)}
+                    className={inputCls}
+                    placeholder="GST-7788"
+                  />
+                </Field>
+                <Field label="Remarks">
+                  <input
+                    value={form.remarks ?? ''}
+                    onChange={(e) => setField('remarks', e.target.value)}
+                    className={inputCls}
+                    placeholder="Morning delivery preferred"
+                  />
+                </Field>
+              </div>
+              {formError && (
+                <p className="rounded-xl bg-red-900/30 px-4 py-3 text-sm text-red-400">
+                  {formError}
+                </p>
+              )}
+              <div className="mt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSubmit()}
+                  disabled={isSaving}
+                  className="w-full rounded-xl border border-amber-300 bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-900 transition hover:bg-amber-200 disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="w-full rounded-xl border border-white/10 px-5 py-2.5 text-sm font-medium text-stone-400 transition hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </div>

@@ -1,5 +1,7 @@
 package com.panto.wms.destruction.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.destruction.dto.CreateDestructionRequest;
@@ -77,6 +79,13 @@ public class DestructionService {
      * @return 创建后的销毁详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "DESTRUCTION",
+        entityClass = Destruction.class,
+        entityId = "#result.id",
+        description = "创建销毁记录"
+    )
     public DestructionResponse createDestruction(CreateDestructionRequest request, Long operatorId) {
         try {
             return doCreateDestruction(request, operatorId);

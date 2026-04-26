@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { downloadBlobResponse } from '../lib/download';
 import type { Result } from '../types/auth';
 import type {
   CreateOrderRequest,
@@ -39,6 +40,14 @@ async function fetchInvoice(id: number): Promise<InvoiceDetail> {
   return response.data.data;
 }
 
+async function downloadInvoicePdf(id: number) {
+  const response = await apiClient.get<Blob>(`/orders/${id}/invoice/pdf`, {
+    responseType: 'blob',
+  });
+
+  return downloadBlobResponse(response, `invoice-${id}.pdf`);
+}
+
 async function rollbackOrder({
   id,
   request,
@@ -70,6 +79,12 @@ export function useInvoice(id: number) {
     queryKey: ['orders', id, 'invoice'],
     queryFn: () => fetchInvoice(id),
     enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useDownloadInvoicePdf() {
+  return useMutation({
+    mutationFn: downloadInvoicePdf,
   });
 }
 

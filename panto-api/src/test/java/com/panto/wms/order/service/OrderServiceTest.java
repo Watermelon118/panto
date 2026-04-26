@@ -31,6 +31,7 @@ import com.panto.wms.order.repository.OrderItemRepository;
 import com.panto.wms.order.repository.OrderRepository;
 import com.panto.wms.product.entity.Product;
 import com.panto.wms.product.repository.ProductRepository;
+import com.panto.wms.settings.service.SystemSettingService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -63,6 +64,8 @@ class OrderServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private BatchRepository batchRepository;
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
+    @Mock private SystemSettingService systemSettingService;
+    @Mock private InvoicePdfService invoicePdfService;
 
     @InjectMocks
     private OrderService orderService;
@@ -409,11 +412,19 @@ class OrderServiceTest {
         when(orderRepository.findById(704L)).thenReturn(Optional.of(order));
         when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(buildActiveCustomer()));
         when(orderItemRepository.findByOrderIdOrderByIdAsc(704L)).thenReturn(List.of(firstItem, secondItem));
+        when(systemSettingService.getInvoiceSellerCompanyName()).thenReturn("Panto Trading Ltd");
+        when(systemSettingService.getInvoiceSellerGstNumber()).thenReturn("GST-9988");
+        when(systemSettingService.getInvoiceSellerAddress()).thenReturn("1 Queen Street, Auckland");
+        when(systemSettingService.getInvoiceSellerPhone()).thenReturn("09 123 4567");
+        when(systemSettingService.getInvoiceSellerEmail()).thenReturn("accounts@panto.co.nz");
+        when(systemSettingService.getInvoicePaymentInstructions()).thenReturn("Bank transfer");
 
         InvoiceResponse response = orderService.getInvoice(704L);
 
         assertEquals("ORD-20260425-005", response.invoiceNumber());
         assertEquals(OrderStatus.ACTIVE, response.status());
+        assertEquals("Panto Trading Ltd", response.seller().companyName());
+        assertEquals("GST-9988", response.seller().gstNumber());
         assertEquals("Fresh Dumplings Ltd", response.customer().companyName());
         assertEquals(1, response.items().size());
         assertEquals(12, response.items().getFirst().quantity());

@@ -7,6 +7,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.panto.wms.auth.entity.User;
+import com.panto.wms.auth.repository.UserRepository;
+import com.panto.wms.auth.domain.UserRole;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.customer.entity.Customer;
 import com.panto.wms.customer.repository.CustomerRepository;
@@ -24,6 +27,7 @@ import com.panto.wms.product.entity.Product;
 import com.panto.wms.product.repository.ProductRepository;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -46,6 +50,7 @@ class ReportServiceTest {
     @Mock private DestructionRepository destructionRepository;
     @Mock private BatchRepository batchRepository;
     @Mock private ProductRepository productRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks
     private ReportService reportService;
@@ -57,11 +62,13 @@ class ReportServiceTest {
         Order order = buildOrder();
         OrderItem item = buildOrderItem();
         Customer customer = buildCustomer();
+        User operator = buildOperator();
 
         when(orderRepository.findByStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(eq(OrderStatus.ACTIVE), any(), any()))
             .thenReturn(List.of(order));
         when(orderItemRepository.findByOrderIdIn(List.of(10L))).thenReturn(List.of(item));
         when(customerRepository.findAllById(List.of(1L))).thenReturn(List.of(customer));
+        when(userRepository.findAllById(List.of(7L))).thenReturn(List.of(operator));
 
         ReportService.ReportFile reportFile = reportService.exportSales(from, to, "xlsx");
 
@@ -71,11 +78,13 @@ class ReportServiceTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(reportFile.content()))) {
             var sheet = workbook.getSheet("Sales");
             assertEquals("Order Number", sheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("Operator", sheet.getRow(0).getCell(10).getStringCellValue());
             assertEquals("ORD-20260426-001", sheet.getRow(1).getCell(0).getStringCellValue());
             assertEquals("Panto Trading Ltd", sheet.getRow(1).getCell(2).getStringCellValue());
             assertEquals("DUMP001", sheet.getRow(1).getCell(3).getStringCellValue());
             assertEquals(2D, sheet.getRow(1).getCell(5).getNumericCellValue());
             assertEquals(46D, sheet.getRow(1).getCell(9).getNumericCellValue());
+            assertEquals("Alice Admin (admin)", sheet.getRow(1).getCell(10).getStringCellValue());
         }
     }
 
@@ -86,11 +95,13 @@ class ReportServiceTest {
         Destruction destruction = buildDestruction();
         Batch batch = buildBatch();
         Product product = buildProduct();
+        User operator = buildOperator();
 
         when(destructionRepository.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAscIdAsc(any(), any()))
             .thenReturn(List.of(destruction));
         when(batchRepository.findAllById(List.of(100L))).thenReturn(List.of(batch));
         when(productRepository.findAllById(List.of(5L))).thenReturn(List.of(product));
+        when(userRepository.findAllById(List.of(7L))).thenReturn(List.of(operator));
 
         ReportService.ReportFile reportFile = reportService.exportLosses(from, to, "xlsx");
 
@@ -100,13 +111,59 @@ class ReportServiceTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(reportFile.content()))) {
             var sheet = workbook.getSheet("Losses");
             assertEquals("Destruction Number", sheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("Operator", sheet.getRow(0).getCell(8).getStringCellValue());
             assertEquals("DES-20260426-001", sheet.getRow(1).getCell(0).getStringCellValue());
             assertEquals("DUMP001", sheet.getRow(1).getCell(2).getStringCellValue());
             assertEquals("BATCH-001", sheet.getRow(1).getCell(4).getStringCellValue());
             assertEquals(4D, sheet.getRow(1).getCell(5).getNumericCellValue());
             assertEquals(50D, sheet.getRow(1).getCell(7).getNumericCellValue());
+            assertEquals("Alice Admin (admin)", sheet.getRow(1).getCell(8).getStringCellValue());
             assertEquals("Expired stock", sheet.getRow(1).getCell(9).getStringCellValue());
         }
+    }
+
+    @Test
+    void exportSalesShouldGenerateCsvWithReadableOperator() {
+        LocalDate from = LocalDate.of(2026, 4, 1);
+        LocalDate to = LocalDate.of(2026, 4, 30);
+        Order order = buildOrder();
+        OrderItem item = buildOrderItem();
+        Customer customer = buildCustomer();
+        User operator = buildOperator();
+
+        when(orderRepository.findByStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(eq(OrderStatus.ACTIVE), any(), any()))
+            .thenReturn(List.of(order));
+        when(orderItemRepository.findByOrderIdIn(List.of(10L))).thenReturn(List.of(item));
+        when(customerRepository.findAllById(List.of(1L))).thenReturn(List.of(customer));
+        when(userRepository.findAllById(List.of(7L))).thenReturn(List.of(operator));
+
+        ReportService.ReportFile reportFile = reportService.exportSales(from, to, "csv");
+        String csv = new String(reportFile.content(), StandardCharsets.UTF_8);
+
+        assertTrue(csv.contains("lineTotal,operator"));
+        assertTrue(csv.contains("\"Alice Admin (admin)\""));
+    }
+
+    @Test
+    void exportLossesShouldGenerateCsvWithReadableOperator() {
+        LocalDate from = LocalDate.of(2026, 4, 1);
+        LocalDate to = LocalDate.of(2026, 4, 30);
+        Destruction destruction = buildDestruction();
+        Batch batch = buildBatch();
+        Product product = buildProduct();
+        User operator = buildOperator();
+
+        when(destructionRepository.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAscIdAsc(any(), any()))
+            .thenReturn(List.of(destruction));
+        when(batchRepository.findAllById(List.of(100L))).thenReturn(List.of(batch));
+        when(productRepository.findAllById(List.of(5L))).thenReturn(List.of(product));
+        when(userRepository.findAllById(List.of(7L))).thenReturn(List.of(operator));
+
+        ReportService.ReportFile reportFile = reportService.exportLosses(from, to, "csv");
+        String csv = new String(reportFile.content(), StandardCharsets.UTF_8);
+
+        assertTrue(csv.contains("lossAmount,operator,reason"));
+        assertTrue(csv.contains("\"Alice Admin (admin)\",\"Expired stock\""));
     }
 
     @Test
@@ -220,5 +277,21 @@ class ReportServiceTest {
         product.setCreatedBy(1L);
         product.setUpdatedBy(1L);
         return product;
+    }
+
+    private User buildOperator() {
+        User user = new User();
+        user.setId(7L);
+        user.setUsername("admin");
+        user.setFullName("Alice Admin");
+        user.setRole(UserRole.ADMIN);
+        user.setActive(true);
+        user.setMustChangePassword(false);
+        user.setPasswordHash("hash");
+        user.setCreatedAt(OffsetDateTime.now().minusDays(10));
+        user.setUpdatedAt(OffsetDateTime.now().minusDays(1));
+        user.setCreatedBy(1L);
+        user.setUpdatedBy(1L);
+        return user;
     }
 }

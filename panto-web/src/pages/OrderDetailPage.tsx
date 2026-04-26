@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useInvoice, useOrder, useRollbackOrder } from '../api/orders';
+import { useDownloadInvoicePdf, useInvoice, useOrder, useRollbackOrder } from '../api/orders';
 import { Modal } from '../components/Modal';
+import type { InvoiceDetail } from '../types/order';
 import { extractErrorMessage } from '../utils/error';
 
 const textareaCls =
@@ -38,6 +39,108 @@ function StatusBadge({ status }: { status: 'ACTIVE' | 'ROLLED_BACK' }) {
   );
 }
 
+function InvoiceCopyPreview({
+  invoice,
+  copyLabel,
+}: {
+  invoice: InvoiceDetail;
+  copyLabel: string;
+}) {
+  return (
+    <div className="space-y-5 rounded-[1.5rem] border border-dashed border-white/10 bg-stone-950/60 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.14em] text-amber-300 uppercase">{copyLabel}</p>
+          <p className="mt-2 text-lg font-bold text-stone-100">Tax Invoice</p>
+          <p className="mt-1 text-xs text-stone-500">{invoice.invoiceNumber}</p>
+        </div>
+        <div className="text-right text-xs text-stone-500">
+          <p>{formatDateTime(invoice.invoiceDate)}</p>
+          <p className="mt-1">
+            <StatusBadge status={invoice.status} />
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 rounded-2xl bg-white/5 p-4 text-sm md:grid-cols-2">
+        <div>
+          <p className="text-xs font-medium text-stone-400">Seller</p>
+          <p className="mt-1 font-medium text-stone-100">{invoice.seller.companyName}</p>
+          <p className="mt-1 text-stone-300">{invoice.seller.address || 'Not configured'}</p>
+          <p className="text-stone-300">{invoice.seller.phone || 'Not configured'}</p>
+          <p className="text-stone-300">{invoice.seller.email || 'Not configured'}</p>
+          <p className="text-stone-300">GST: {invoice.seller.gstNumber || 'Not configured'}</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-stone-400">Bill To</p>
+          <p className="mt-1 font-medium text-stone-100">{invoice.customer.companyName}</p>
+          <p className="mt-1 text-stone-300">{invoice.customer.contactPerson || 'No contact'}</p>
+          <p className="text-stone-300">{invoice.customer.phone || 'No phone'}</p>
+          <p className="text-stone-300">{invoice.customer.address || 'No address'}</p>
+          <p className="text-stone-300">GST: {invoice.customer.gstNumber || 'Not provided'}</p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-white/10 text-left text-xs font-semibold tracking-wider text-stone-400 uppercase">
+              <th className="pb-3 pr-4">Item</th>
+              <th className="pb-3 pr-4">Spec</th>
+              <th className="pb-3 pr-4 text-right">Qty</th>
+              <th className="pb-3 pr-4 text-right">Unit Price</th>
+              <th className="pb-3 pr-4 text-right">GST</th>
+              <th className="pb-3 text-right">Line Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoice.items.map((item, index) => (
+              <tr key={`${copyLabel}-${item.productSku}-${index}`} className="border-b border-white/5">
+                <td className="py-3 pr-4">
+                  <div className="font-medium text-stone-100">{item.productName}</div>
+                  <div className="text-xs text-stone-500">
+                    {item.productSku} | {item.productUnit}
+                  </div>
+                </td>
+                <td className="py-3 pr-4 text-stone-300">{item.productSpecification || '—'}</td>
+                <td className="py-3 pr-4 text-right text-stone-300">{item.quantity}</td>
+                <td className="py-3 pr-4 text-right text-stone-300">{formatCurrency(item.unitPrice)}</td>
+                <td className="py-3 pr-4 text-right text-stone-300">{formatCurrency(item.gstAmount)}</td>
+                <td className="py-3 text-right font-medium text-stone-100">
+                  {formatCurrency(item.subtotal + item.gstAmount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="rounded-2xl bg-white/5 p-4 text-sm">
+          <p className="text-xs font-medium text-stone-400">Payment Instructions</p>
+          <p className="mt-2 text-stone-300">{invoice.paymentInstructions || 'Not configured'}</p>
+          <p className="mt-4 text-xs font-medium text-stone-400">Remarks</p>
+          <p className="mt-2 text-stone-300">{invoice.remarks || 'No remarks.'}</p>
+        </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between text-stone-300">
+            <span>Subtotal</span>
+            <span>{formatCurrency(invoice.subtotalAmount)}</span>
+          </div>
+          <div className="flex items-center justify-between text-stone-300">
+            <span>GST</span>
+            <span>{formatCurrency(invoice.gstAmount)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-white/10 pt-2 text-base font-semibold text-white">
+            <span>Total</span>
+            <span>{formatCurrency(invoice.totalAmount)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -45,6 +148,7 @@ export function OrderDetailPage() {
 
   const orderQuery = useOrder(orderId);
   const invoiceQuery = useInvoice(orderId);
+  const downloadInvoicePdf = useDownloadInvoicePdf();
   const rollbackOrder = useRollbackOrder();
 
   const [rollbackOpen, setRollbackOpen] = useState(false);
@@ -71,6 +175,15 @@ export function OrderDetailPage() {
       setRollbackOpen(false);
     } catch (rollbackError) {
       setError(extractErrorMessage(rollbackError));
+    }
+  };
+
+  const handleDownloadInvoicePdf = async () => {
+    setError(null);
+    try {
+      await downloadInvoicePdf.mutateAsync(orderId);
+    } catch (downloadError) {
+      setError(extractErrorMessage(downloadError));
     }
   };
 
@@ -116,10 +229,11 @@ export function OrderDetailPage() {
           <StatusBadge status={order.status} />
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => void handleDownloadInvoicePdf()}
             className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-stone-300 transition hover:bg-white/5 hover:text-stone-100"
+            disabled={downloadInvoicePdf.isPending}
           >
-            Print Invoice
+            {downloadInvoicePdf.isPending ? 'Generating PDF...' : 'Download PDF'}
           </button>
           <button
             type="button"
@@ -253,91 +367,9 @@ export function OrderDetailPage() {
                 Invoice data is unavailable.
               </div>
             ) : (
-              <div className="space-y-5 rounded-[1.5rem] border border-dashed border-white/10 bg-stone-950/60 p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-bold text-stone-100">Tax Invoice</p>
-                    <p className="mt-1 text-xs text-stone-500">{invoice.invoiceNumber}</p>
-                  </div>
-                  <div className="text-right text-xs text-stone-500">
-                    <p>{formatDateTime(invoice.invoiceDate)}</p>
-                    <p className="mt-1">
-                      <StatusBadge status={invoice.status} />
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 rounded-2xl bg-white/5 p-4 text-sm md:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-medium text-stone-400">Bill To</p>
-                    <p className="mt-1 font-medium text-stone-100">{invoice.customer.companyName}</p>
-                    <p className="mt-1 text-stone-300">{invoice.customer.contactPerson || 'No contact'}</p>
-                    <p className="text-stone-300">{invoice.customer.phone || 'No phone'}</p>
-                    <p className="text-stone-300">{invoice.customer.address || 'No address'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-stone-400">Notes</p>
-                    <p className="mt-1 text-stone-300">{invoice.remarks || 'No remarks.'}</p>
-                    <p className="mt-3 text-xs font-medium text-stone-400">Payment Instructions</p>
-                    <p className="mt-1 text-stone-300">
-                      {invoice.paymentInstructions || 'Refer to office payment terms.'}
-                    </p>
-                    <p className="mt-3 text-xs font-medium text-stone-400">GST Number</p>
-                    <p className="mt-1 text-stone-300">{invoice.customer.gstNumber || 'Not provided'}</p>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-white/10 text-left text-xs font-semibold tracking-wider text-stone-400 uppercase">
-                        <th className="pb-3 pr-4">Item</th>
-                        <th className="pb-3 pr-4 text-right">Qty</th>
-                        <th className="pb-3 pr-4 text-right">Unit Price</th>
-                        <th className="pb-3 pr-4 text-right">GST</th>
-                        <th className="pb-3 text-right">Line Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoice.items.map((item, index) => (
-                        <tr key={`${item.productSku}-${index}`} className="border-b border-white/5">
-                          <td className="py-3 pr-4">
-                            <div className="font-medium text-stone-100">{item.productName}</div>
-                            <div className="text-xs text-stone-500">
-                              {item.productSku} | {item.productUnit}
-                              {item.productSpecification ? ` | ${item.productSpecification}` : ''}
-                            </div>
-                          </td>
-                          <td className="py-3 pr-4 text-right text-stone-300">{item.quantity}</td>
-                          <td className="py-3 pr-4 text-right text-stone-300">
-                            {formatCurrency(item.unitPrice)}
-                          </td>
-                          <td className="py-3 pr-4 text-right text-stone-300">
-                            {formatCurrency(item.gstAmount)}
-                          </td>
-                          <td className="py-3 text-right font-medium text-stone-100">
-                            {formatCurrency(item.subtotal + item.gstAmount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="ml-auto max-w-xs space-y-2 text-sm">
-                  <div className="flex items-center justify-between text-stone-300">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(invoice.subtotalAmount)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-stone-300">
-                    <span>GST</span>
-                    <span>{formatCurrency(invoice.gstAmount)}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-white/10 pt-2 text-base font-semibold text-white">
-                    <span>Total</span>
-                    <span>{formatCurrency(invoice.totalAmount)}</span>
-                  </div>
-                </div>
+              <div className="space-y-4">
+                <InvoiceCopyPreview invoice={invoice} copyLabel="Customer Copy" />
+                <InvoiceCopyPreview invoice={invoice} copyLabel="Office Copy" />
               </div>
             )}
           </div>

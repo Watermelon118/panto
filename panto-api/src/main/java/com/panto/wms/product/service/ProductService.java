@@ -1,5 +1,7 @@
 package com.panto.wms.product.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.product.dto.CreateProductRequest;
@@ -96,6 +98,13 @@ public class ProductService {
      * @return 创建后的产品
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "PRODUCT",
+        entityClass = Product.class,
+        entityId = "#result.id",
+        description = "创建产品"
+    )
     public ProductResponse createProduct(CreateProductRequest request, Long operatorId) {
         String normalizedSku = normalizeRequired(request.sku(), "sku");
         validateSkuUniqueness(normalizedSku, null);
@@ -133,6 +142,13 @@ public class ProductService {
      * @return 更新后的产品
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "PRODUCT",
+        entityClass = Product.class,
+        entityId = "#productId",
+        description = "更新产品"
+    )
     public ProductResponse updateProduct(Long productId, UpdateProductRequest request, Long operatorId) {
         Product product = findProductOrThrow(productId);
         String normalizedSku = normalizeRequired(request.sku(), "sku");
@@ -166,6 +182,13 @@ public class ProductService {
      * @return 更新后的产品
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "PRODUCT",
+        entityClass = Product.class,
+        entityId = "#productId",
+        description = "更新产品状态"
+    )
     public ProductResponse updateProductStatus(Long productId, boolean active, Long operatorId) {
         Product product = findProductOrThrow(productId);
         product.setActive(active);

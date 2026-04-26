@@ -12,12 +12,24 @@ export function SettingsPage() {
   const updateSettings = useUpdateSettings();
 
   const [expiryWarningDays, setExpiryWarningDays] = useState('');
+  const [invoiceSellerCompanyName, setInvoiceSellerCompanyName] = useState('');
+  const [invoiceSellerGstNumber, setInvoiceSellerGstNumber] = useState('');
+  const [invoiceSellerAddress, setInvoiceSellerAddress] = useState('');
+  const [invoiceSellerPhone, setInvoiceSellerPhone] = useState('');
+  const [invoiceSellerEmail, setInvoiceSellerEmail] = useState('');
+  const [invoicePaymentInstructions, setInvoicePaymentInstructions] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (settingsQuery.data) {
       setExpiryWarningDays(String(settingsQuery.data.expiryWarningDays));
+      setInvoiceSellerCompanyName(settingsQuery.data.invoiceSellerCompanyName);
+      setInvoiceSellerGstNumber(settingsQuery.data.invoiceSellerGstNumber);
+      setInvoiceSellerAddress(settingsQuery.data.invoiceSellerAddress);
+      setInvoiceSellerPhone(settingsQuery.data.invoiceSellerPhone);
+      setInvoiceSellerEmail(settingsQuery.data.invoiceSellerEmail);
+      setInvoicePaymentInstructions(settingsQuery.data.invoicePaymentInstructions);
     }
   }, [settingsQuery.data]);
 
@@ -38,8 +50,20 @@ export function SettingsPage() {
     try {
       const updated = await updateSettings.mutateAsync({
         expiryWarningDays: parsedValue,
+        invoiceSellerCompanyName,
+        invoiceSellerGstNumber,
+        invoiceSellerAddress,
+        invoiceSellerPhone,
+        invoiceSellerEmail,
+        invoicePaymentInstructions,
       });
       setExpiryWarningDays(String(updated.expiryWarningDays));
+      setInvoiceSellerCompanyName(updated.invoiceSellerCompanyName);
+      setInvoiceSellerGstNumber(updated.invoiceSellerGstNumber);
+      setInvoiceSellerAddress(updated.invoiceSellerAddress);
+      setInvoiceSellerPhone(updated.invoiceSellerPhone);
+      setInvoiceSellerEmail(updated.invoiceSellerEmail);
+      setInvoicePaymentInstructions(updated.invoicePaymentInstructions);
       setSuccessMessage('Settings saved successfully.');
     } catch (updateError) {
       setError(extractErrorMessage(updateError));
@@ -63,7 +87,7 @@ export function SettingsPage() {
           </p>
           <h1 className="mt-1 text-3xl font-black tracking-tight">Settings</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-300">
-            Configure the expiry warning threshold used by dashboard widgets and daily expiry scans.
+            Configure warehouse warning thresholds and invoice seller details used in preview and PDF downloads.
           </p>
         </div>
 
@@ -102,6 +126,100 @@ export function SettingsPage() {
                 <p className="mt-3 text-sm leading-6 text-stone-400">
                   Batches inside this threshold are treated as <span className="text-amber-300">expiring soon</span>.
                 </p>
+
+                <div className="mt-8 border-t border-white/10 pt-6">
+                  <p className="text-sm font-semibold text-stone-100">Invoice Seller Profile</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-400">
+                    These values appear in invoice preview cards and generated PDF copies.
+                  </p>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-medium text-stone-400">Seller company name</span>
+                      <input
+                        value={invoiceSellerCompanyName}
+                        onChange={(event) => {
+                          setInvoiceSellerCompanyName(event.target.value);
+                          setError(null);
+                          setSuccessMessage(null);
+                        }}
+                        className={inputCls}
+                        placeholder="Panto Trading Ltd"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-medium text-stone-400">Seller GST number</span>
+                      <input
+                        value={invoiceSellerGstNumber}
+                        onChange={(event) => {
+                          setInvoiceSellerGstNumber(event.target.value);
+                          setError(null);
+                          setSuccessMessage(null);
+                        }}
+                        className={inputCls}
+                        placeholder="GST-9988"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-medium text-stone-400">Seller phone</span>
+                      <input
+                        value={invoiceSellerPhone}
+                        onChange={(event) => {
+                          setInvoiceSellerPhone(event.target.value);
+                          setError(null);
+                          setSuccessMessage(null);
+                        }}
+                        className={inputCls}
+                        placeholder="09 123 4567"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-medium text-stone-400">Seller email</span>
+                      <input
+                        type="email"
+                        value={invoiceSellerEmail}
+                        onChange={(event) => {
+                          setInvoiceSellerEmail(event.target.value);
+                          setError(null);
+                          setSuccessMessage(null);
+                        }}
+                        className={inputCls}
+                        placeholder="accounts@panto.co.nz"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5 md:col-span-2">
+                      <span className="text-xs font-medium text-stone-400">Seller address</span>
+                      <input
+                        value={invoiceSellerAddress}
+                        onChange={(event) => {
+                          setInvoiceSellerAddress(event.target.value);
+                          setError(null);
+                          setSuccessMessage(null);
+                        }}
+                        className={inputCls}
+                        placeholder="1 Queen Street, Auckland"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5 md:col-span-2">
+                      <span className="text-xs font-medium text-stone-400">Payment instructions</span>
+                      <input
+                        value={invoicePaymentInstructions}
+                        onChange={(event) => {
+                          setInvoicePaymentInstructions(event.target.value);
+                          setError(null);
+                          setSuccessMessage(null);
+                        }}
+                        className={inputCls}
+                        placeholder="Bank transfer"
+                      />
+                    </label>
+                  </div>
+                </div>
 
                 {settingsQuery.error && (
                   <p className="mt-5 rounded-xl bg-red-900/30 px-4 py-3 text-sm text-red-400">
@@ -157,6 +275,7 @@ export function SettingsPage() {
               <p>Set to 0 if you only want already-expired batches to trigger warnings.</p>
               <p>Use a larger number for product lines with longer outbound planning cycles.</p>
               <p>The backend validates values in the inclusive range 0 to 3650.</p>
+              <p>Invoice seller settings can be left blank temporarily, but invoices will show “Not configured”.</p>
             </div>
           </div>
         </aside>

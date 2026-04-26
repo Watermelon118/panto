@@ -17,6 +17,15 @@ import org.springframework.data.repository.query.Param;
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
+     * 分页查询某个客户的订单历史。
+     *
+     * @param customerId 客户 ID
+     * @param pageable 分页参数
+     * @return 订单分页结果
+     */
+    Page<Order> findByCustomerId(Long customerId, Pageable pageable);
+
+    /**
      * 统计指定时间范围内创建的订单数量，用于生成订单号序列。
      *
      * @param start 起始时间（含）
@@ -108,5 +117,23 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         @Param("status") OrderStatus status,
         @Param("start") OffsetDateTime start,
         @Param("end") OffsetDateTime end
+    );
+
+    /**
+     * 汇总某个客户在指定状态下的订单总金额。
+     *
+     * @param customerId 客户 ID
+     * @param status 订单状态
+     * @return 订单总金额
+     */
+    @Query("""
+        select coalesce(sum(o.totalAmount), 0)
+        from Order o
+        where o.customerId = :customerId
+          and o.status = :status
+        """)
+    BigDecimal sumTotalAmountByCustomerIdAndStatus(
+        @Param("customerId") Long customerId,
+        @Param("status") OrderStatus status
     );
 }

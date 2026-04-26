@@ -1,5 +1,7 @@
 package com.panto.wms.inbound.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.inbound.dto.CreateInboundRequest;
@@ -125,6 +127,13 @@ public class InboundService {
      * @return 创建后的入库单详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "INBOUND_RECORD",
+        entityClass = InboundRecord.class,
+        entityId = "#result.id",
+        description = "创建入库单"
+    )
     public InboundDetailResponse createInbound(CreateInboundRequest request, Long operatorId) {
         List<Long> productIds = extractProductIds(request.items());
         Map<Long, Product> productMap = loadProductMap(productIds);
@@ -158,6 +167,13 @@ public class InboundService {
      * @return 更新后的入库单详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.UPDATE,
+        entityType = "INBOUND_RECORD",
+        entityClass = InboundRecord.class,
+        entityId = "#id",
+        description = "更新入库单"
+    )
     public InboundDetailResponse updateInbound(Long id, UpdateInboundRequest request, Long operatorId) {
         InboundRecord record = findRecordOrThrow(id);
 

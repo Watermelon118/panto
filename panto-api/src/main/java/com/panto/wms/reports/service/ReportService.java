@@ -1,5 +1,7 @@
 package com.panto.wms.reports.service;
 
+import com.panto.wms.auth.entity.User;
+import com.panto.wms.auth.repository.UserRepository;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.customer.entity.Customer;
@@ -30,6 +32,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Cell;
@@ -55,6 +58,7 @@ public class ReportService {
     private final DestructionRepository destructionRepository;
     private final BatchRepository batchRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
     /**
      * 创建报表导出业务服务。
@@ -65,6 +69,7 @@ public class ReportService {
      * @param destructionRepository 销毁记录仓储
      * @param batchRepository 批次仓储
      * @param productRepository 商品仓储
+     * @param userRepository 用户仓储
      */
     public ReportService(
         OrderRepository orderRepository,
@@ -72,7 +77,8 @@ public class ReportService {
         CustomerRepository customerRepository,
         DestructionRepository destructionRepository,
         BatchRepository batchRepository,
-        ProductRepository productRepository
+        ProductRepository productRepository,
+        UserRepository userRepository
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -80,6 +86,7 @@ public class ReportService {
         this.destructionRepository = destructionRepository;
         this.batchRepository = batchRepository;
         this.productRepository = productRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -176,6 +183,9 @@ public class ReportService {
         Map<Long, Customer> customerMap = loadCustomerMap(
             orders.stream().map(Order::getCustomerId).distinct().toList()
         );
+        Map<Long, User> operatorMap = loadUserMap(
+            orders.stream().map(Order::getCreatedBy).filter(Objects::nonNull).distinct().toList()
+        );
         Map<Long, List<OrderItem>> itemsByOrderId = orderItemRepository.findByOrderIdIn(
             orders.stream().map(Order::getId).toList()
         ).stream()
@@ -185,8 +195,9 @@ public class ReportService {
         return orders.stream()
             .flatMap(order -> {
                 Customer customer = customerMap.get(order.getCustomerId());
+                User operator = operatorMap.get(order.getCreatedBy());
                 return itemsByOrderId.getOrDefault(order.getId(), List.of()).stream()
-                    .map(item -> toSalesRow(order, customer, item));
+                    .map(item -> toSalesRow(order, customer, item, operator));
             })
             .toList();
     }
@@ -202,17 +213,21 @@ public class ReportService {
         Map<Long, Product> productMap = loadProductMap(
             destructions.stream().map(Destruction::getProductId).distinct().toList()
         );
+        Map<Long, User> operatorMap = loadUserMap(
+            destructions.stream().map(Destruction::getCreatedBy).filter(Objects::nonNull).distinct().toList()
+        );
 
         return destructions.stream()
             .map(destruction -> toLossRow(
                 destruction,
                 batchMap.get(destruction.getBatchId()),
-                productMap.get(destruction.getProductId())
+                productMap.get(destruction.getProductId()),
+                operatorMap.get(destruction.getCreatedBy())
             ))
             .toList();
     }
 
-    private SalesRow toSalesRow(Order order, Customer customer, OrderItem item) {
+    private SalesRow toSalesRow(Order order, Customer customer, OrderItem item, User operator) {
         BigDecimal lineTotal = item.getSubtotal().add(item.getGstAmount()).setScale(2, RoundingMode.HALF_UP);
         return new SalesRow(
             order.getOrderNumber(),
@@ -225,14 +240,14 @@ public class ReportService {
             item.getSubtotal(),
             item.getGstAmount(),
             lineTotal,
-            order.getCreatedBy()
+            formatOperator(operator, order.getCreatedBy())
         );
     }
 
     private byte[] buildSalesCsv(List<SalesRow> rows) {
         StringBuilder builder = new StringBuilder();
         builder.append(
-            "orderNumber,orderCreatedAt,customerCompanyName,productSku,productName,quantity,unitPrice,subtotal,gstAmount,lineTotal,operatorId\n"
+            "orderNumber,orderCreatedAt,customerCompanyName,productSku,productName,quantity,unitPrice,subtotal,gstAmount,lineTotal,operator\n"
         );
         for (SalesRow row : rows) {
             builder.append(csv(row.orderNumber())).append(',')
@@ -245,7 +260,7 @@ public class ReportService {
                 .append(row.subtotal()).append(',')
                 .append(row.gstAmount()).append(',')
                 .append(row.lineTotal()).append(',')
-                .append(row.operatorId())
+                .append(csv(row.operator()))
                 .append('\n');
         }
         return builder.toString().getBytes(StandardCharsets.UTF_8);
@@ -265,7 +280,7 @@ public class ReportService {
                 "Subtotal",
                 "GST Amount",
                 "Line Total",
-                "Operator ID"
+                "Operator"
             };
 
             Row headerRow = sheet.createRow(0);
@@ -286,7 +301,7 @@ public class ReportService {
                 excelRow.createCell(7).setCellValue(row.subtotal().doubleValue());
                 excelRow.createCell(8).setCellValue(row.gstAmount().doubleValue());
                 excelRow.createCell(9).setCellValue(row.lineTotal().doubleValue());
-                excelRow.createCell(10).setCellValue(row.operatorId());
+                writeCell(excelRow, 10, row.operator());
             }
 
             for (int i = 0; i < headers.length; i++) {
@@ -303,7 +318,7 @@ public class ReportService {
     private byte[] buildLossCsv(List<LossRow> rows) {
         StringBuilder builder = new StringBuilder();
         builder.append(
-            "destructionNumber,destructionCreatedAt,productSku,productName,batchNumber,quantityDestroyed,purchaseUnitPrice,lossAmount,operatorId,reason\n"
+            "destructionNumber,destructionCreatedAt,productSku,productName,batchNumber,quantityDestroyed,purchaseUnitPrice,lossAmount,operator,reason\n"
         );
         for (LossRow row : rows) {
             builder.append(csv(row.destructionNumber())).append(',')
@@ -314,7 +329,7 @@ public class ReportService {
                 .append(row.quantityDestroyed()).append(',')
                 .append(row.purchaseUnitPrice()).append(',')
                 .append(row.lossAmount()).append(',')
-                .append(row.operatorId()).append(',')
+                .append(csv(row.operator())).append(',')
                 .append(csv(row.reason()))
                 .append('\n');
         }
@@ -333,7 +348,7 @@ public class ReportService {
                 "Quantity Destroyed",
                 "Purchase Unit Price",
                 "Loss Amount",
-                "Operator ID",
+                "Operator",
                 "Reason"
             };
 
@@ -353,7 +368,7 @@ public class ReportService {
                 excelRow.createCell(5).setCellValue(row.quantityDestroyed());
                 excelRow.createCell(6).setCellValue(row.purchaseUnitPrice().doubleValue());
                 excelRow.createCell(7).setCellValue(row.lossAmount().doubleValue());
-                excelRow.createCell(8).setCellValue(row.operatorId());
+                writeCell(excelRow, 8, row.operator());
                 writeCell(excelRow, 9, row.reason());
             }
 
@@ -368,7 +383,7 @@ public class ReportService {
         }
     }
 
-    private LossRow toLossRow(Destruction destruction, Batch batch, Product product) {
+    private LossRow toLossRow(Destruction destruction, Batch batch, Product product, User operator) {
         return new LossRow(
             destruction.getDestructionNumber(),
             destruction.getCreatedAt(),
@@ -378,7 +393,7 @@ public class ReportService {
             destruction.getQuantityDestroyed(),
             destruction.getPurchaseUnitPriceSnapshot(),
             destruction.getLossAmount(),
-            destruction.getCreatedBy(),
+            formatOperator(operator, destruction.getCreatedBy()),
             destruction.getReason()
         );
     }
@@ -405,6 +420,14 @@ public class ReportService {
         }
         return productRepository.findAllById(productIds).stream()
             .collect(Collectors.toMap(Product::getId, product -> product, (left, right) -> left, LinkedHashMap::new));
+    }
+
+    private Map<Long, User> loadUserMap(Collection<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userRepository.findAllById(userIds).stream()
+            .collect(Collectors.toMap(User::getId, user -> user, (left, right) -> left, LinkedHashMap::new));
     }
 
     private void validateDateRange(LocalDate from, LocalDate to) {
@@ -441,6 +464,33 @@ public class ReportService {
         return "\"" + normalized.replace("\"", "\"\"") + "\"";
     }
 
+    private String formatOperator(User user, Long operatorId) {
+        if (user == null) {
+            return operatorId == null ? "" : String.valueOf(operatorId);
+        }
+
+        String username = trimToNull(user.getUsername());
+        String fullName = trimToNull(user.getFullName());
+        if (fullName != null && username != null && !fullName.equals(username)) {
+            return fullName + " (" + username + ")";
+        }
+        if (fullName != null) {
+            return fullName;
+        }
+        if (username != null) {
+            return username;
+        }
+        return operatorId == null ? "" : String.valueOf(operatorId);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     private void writeCell(Row row, int index, String value) {
         Cell cell = row.createCell(index);
         cell.setCellValue(value == null ? "" : value);
@@ -467,7 +517,7 @@ public class ReportService {
         BigDecimal subtotal,
         BigDecimal gstAmount,
         BigDecimal lineTotal,
-        Long operatorId
+        String operator
     ) {
     }
 
@@ -480,7 +530,7 @@ public class ReportService {
         Integer quantityDestroyed,
         BigDecimal purchaseUnitPrice,
         BigDecimal lossAmount,
-        Long operatorId,
+        String operator,
         String reason
     ) {
     }

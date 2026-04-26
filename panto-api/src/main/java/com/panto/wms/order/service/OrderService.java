@@ -1,5 +1,7 @@
 package com.panto.wms.order.service;
 
+import com.panto.wms.audit.annotation.Auditable;
+import com.panto.wms.audit.domain.AuditAction;
 import com.panto.wms.common.exception.BusinessException;
 import com.panto.wms.common.exception.ErrorCode;
 import com.panto.wms.customer.entity.Customer;
@@ -15,6 +17,7 @@ import com.panto.wms.order.dto.CreateOrderRequest;
 import com.panto.wms.order.dto.InvoiceCustomerResponse;
 import com.panto.wms.order.dto.InvoiceLineResponse;
 import com.panto.wms.order.dto.InvoiceResponse;
+import com.panto.wms.order.dto.InvoiceSellerResponse;
 import com.panto.wms.order.dto.OrderItemResponse;
 import com.panto.wms.order.dto.OrderPageResponse;
 import com.panto.wms.order.dto.OrderResponse;
@@ -25,6 +28,7 @@ import com.panto.wms.order.repository.OrderItemRepository;
 import com.panto.wms.order.repository.OrderRepository;
 import com.panto.wms.product.entity.Product;
 import com.panto.wms.product.repository.ProductRepository;
+import com.panto.wms.settings.service.SystemSettingService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -56,14 +60,14 @@ public class OrderService {
     private static final BigDecimal GST_RATE = new BigDecimal("0.15");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String ORDER_DOCUMENT_TYPE = "ORDER";
-    private static final String PAYMENT_INSTRUCTIONS = "Bank transfer";
-
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final BatchRepository batchRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
+    private final SystemSettingService systemSettingService;
+    private final InvoicePdfService invoicePdfService;
 
     /**
      * 创建订单业务服务。
@@ -74,6 +78,8 @@ public class OrderService {
      * @param productRepository 商品仓储
      * @param batchRepository 批次仓储
      * @param inventoryTransactionRepository 库存事务仓储
+     * @param systemSettingService 系统设置服务
+     * @param invoicePdfService 发票 PDF 服务
      */
     public OrderService(
         OrderRepository orderRepository,
@@ -81,7 +87,9 @@ public class OrderService {
         CustomerRepository customerRepository,
         ProductRepository productRepository,
         BatchRepository batchRepository,
-        InventoryTransactionRepository inventoryTransactionRepository
+        InventoryTransactionRepository inventoryTransactionRepository,
+        SystemSettingService systemSettingService,
+        InvoicePdfService invoicePdfService
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -89,6 +97,8 @@ public class OrderService {
         this.productRepository = productRepository;
         this.batchRepository = batchRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
+        this.systemSettingService = systemSettingService;
+        this.invoicePdfService = invoicePdfService;
     }
 
     /**
@@ -99,6 +109,13 @@ public class OrderService {
      * @return 创建后的订单详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.CREATE,
+        entityType = "ORDER",
+        entityClass = Order.class,
+        entityId = "#result.id",
+        description = "创建订单"
+    )
     public OrderResponse createOrder(CreateOrderRequest request, Long operatorId) {
         try {
             return doCreateOrder(request, operatorId);
@@ -186,6 +203,13 @@ public class OrderService {
      * @return 回滚后的订单详情
      */
     @Transactional
+    @Auditable(
+        action = AuditAction.ROLLBACK,
+        entityType = "ORDER",
+        entityClass = Order.class,
+        entityId = "#orderId",
+        description = "回滚订单"
+    )
     public OrderResponse rollbackOrder(Long orderId, String reason, Long operatorId) {
         try {
             return doRollbackOrder(orderId, reason, operatorId);
@@ -206,12 +230,38 @@ public class OrderService {
         Order order = findOrderOrThrow(orderId);
         Customer customer = findCustomerOrThrow(order.getCustomerId());
         List<OrderItem> items = orderItemRepository.findByOrderIdOrderByIdAsc(orderId);
+        return toInvoiceResponse(order, customer, items);
+    }
 
+    /**
+     * 查询订单发票 PDF。
+     *
+     * @param orderId 订单 ID
+     * @return 发票 PDF 文件
+     */
+    @Transactional(readOnly = true)
+    public InvoicePdfFile getInvoicePdf(Long orderId) {
+        InvoiceResponse invoice = getInvoice(orderId);
+        return new InvoicePdfFile(
+            "invoice-%s.pdf".formatted(invoice.invoiceNumber()),
+            "application/pdf",
+            invoicePdfService.generatePdf(invoice)
+        );
+    }
+
+    private InvoiceResponse toInvoiceResponse(Order order, Customer customer, List<OrderItem> items) {
         return new InvoiceResponse(
             order.getId(),
             order.getOrderNumber(),
             order.getCreatedAt(),
             order.getStatus(),
+            new InvoiceSellerResponse(
+                systemSettingService.getInvoiceSellerCompanyName(),
+                systemSettingService.getInvoiceSellerGstNumber(),
+                systemSettingService.getInvoiceSellerAddress(),
+                systemSettingService.getInvoiceSellerPhone(),
+                systemSettingService.getInvoiceSellerEmail()
+            ),
             new InvoiceCustomerResponse(
                 customer.getCompanyName(),
                 customer.getContactPerson(),
@@ -224,7 +274,7 @@ public class OrderService {
             order.getGstAmount(),
             order.getTotalAmount(),
             order.getRemarks(),
-            PAYMENT_INSTRUCTIONS
+            systemSettingService.getInvoicePaymentInstructions()
         );
     }
 
@@ -689,5 +739,15 @@ public class OrderService {
         private int quantity;
         private BigDecimal subtotal = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         private BigDecimal gstAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 发票 PDF 文件返回值。
+     *
+     * @param fileName 文件名
+     * @param contentType 内容类型
+     * @param content 文件内容
+     */
+    public record InvoicePdfFile(String fileName, String contentType, byte[] content) {
     }
 }

@@ -1,8 +1,10 @@
 package com.panto.wms.auth.controller;
 
+import com.panto.wms.auth.dto.ChangePasswordRequest;
 import com.panto.wms.auth.dto.LoginRequest;
 import com.panto.wms.auth.dto.LoginResponse;
 import com.panto.wms.auth.security.JwtProperties;
+import com.panto.wms.auth.security.AuthenticatedUser;
 import com.panto.wms.auth.service.AuthService;
 import com.panto.wms.common.api.Result;
 import jakarta.servlet.http.Cookie;
@@ -11,6 +13,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,21 +69,51 @@ public class AuthController {
         return buildTokenResponse(loginResult);
     }
 
+    /**
+     * 修改当前登录用户密码。
+     *
+     * @param request 修改密码请求
+     * @param authenticatedUser 当前登录用户
+     * @return 修改后的登录结果
+     */
+    @PostMapping("/change-password")
+    public ResponseEntity<Result<LoginResponse>> changePassword(
+        @Valid @RequestBody ChangePasswordRequest request,
+        @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        AuthService.LoginResult loginResult = authService.changePassword(authenticatedUser.getUserId(), request);
+        return buildTokenResponse(loginResult);
+    }
+
+    /**
+     * 退出登录并清理 Refresh Cookie。
+     *
+     * @return 成功响应
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Result<Void>> logout() {
+        return ResponseEntity.ok()
+            .header(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0).toString())
+            .body(Result.success());
+    }
+
     private ResponseEntity<Result<LoginResponse>> buildTokenResponse(AuthService.LoginResult loginResult) {
-        ResponseCookie refreshCookie = ResponseCookie.from(
-            jwtProperties.getRefreshCookieName(),
-            loginResult.refreshToken()
-        )
+        return ResponseEntity.ok()
+            .header(
+                HttpHeaders.SET_COOKIE,
+                buildRefreshCookie(loginResult.refreshToken(), jwtProperties.getRefreshTokenTtl().toSeconds()).toString()
+            )
+            .body(Result.success(loginResult.response()));
+    }
+
+    private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {
+        return ResponseCookie.from(jwtProperties.getRefreshCookieName(), value)
             .httpOnly(true)
             .secure(false)
             .sameSite("Strict")
             .path("/api/v1/auth")
-            .maxAge(jwtProperties.getRefreshTokenTtl())
+            .maxAge(maxAgeSeconds)
             .build();
-
-        return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-            .body(Result.success(loginResult.response()));
     }
 
     private String resolveClientIp(HttpServletRequest request) {
