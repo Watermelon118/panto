@@ -4,6 +4,9 @@ import { AppLayout } from './layouts/AppLayout';
 import { BatchListPage } from './pages/BatchListPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DestructionCreatePage } from './pages/DestructionCreatePage';
+import { DestructionDetailPage } from './pages/DestructionDetailPage';
+import { DestructionListPage } from './pages/DestructionListPage';
 import { InboundCreatePage } from './pages/InboundCreatePage';
 import { InboundDetailPage } from './pages/InboundDetailPage';
 import { InboundListPage } from './pages/InboundListPage';
@@ -40,6 +43,9 @@ export const router = createBrowserRouter([
           { path: '/inventory/stock', element: <StockSummaryPage /> },
           { path: '/inventory/batches', element: <BatchListPage /> },
           { path: '/inventory/transactions', element: <TransactionListPage /> },
+          { path: '/destructions', element: <DestructionListPage /> },
+          { path: '/destructions/new', element: <DestructionCreatePage /> },
+          { path: '/destructions/:id', element: <DestructionDetailPage /> },
           { path: '/users', element: <UsersPage /> },
         ],
       },
