@@ -146,7 +146,7 @@ class CustomerServiceTest {
         PageImpl<Customer> page = new PageImpl<>(List.of(customer), PageRequest.of(0, 20), 1);
 
         when(customerRepository.search(
-            "Panto",
+            "%panto%",
             true,
             PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
         )).thenReturn(page);

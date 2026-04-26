@@ -33,6 +33,10 @@
 | `ORDER_ALREADY_ROLLED_BACK` | Order has already been rolled back |
 | `ORDER_INSUFFICIENT_STOCK` | Available stock is insufficient for the requested quantity |
 | `ORDER_STOCK_CONFLICT` | Stock changed concurrently; the order should be retried |
+| `DESTRUCTION_NOT_FOUND` | Destruction record does not exist |
+| `DESTRUCTION_BATCH_NOT_FOUND` | Target batch does not exist or cannot be destroyed |
+| `DESTRUCTION_INSUFFICIENT_STOCK` | Batch remaining stock is insufficient for the requested destruction quantity |
+| `DESTRUCTION_STOCK_CONFLICT` | Batch stock changed concurrently; the destruction should be retried |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
 
 ## Auth APIs
@@ -1741,6 +1745,188 @@ Response body structure is the same as `GET /users/{id}`.
 #### Failure Responses
 
 - `USER_NOT_FOUND`
+
+## Destruction APIs
+
+### GET `/destructions`
+
+Get paginated destruction records with optional product and date filters.
+
+#### Query Parameters
+
+- `productId`: optional, filters by product
+- `dateFrom`: optional, format `yyyy-MM-dd`, filters records created on or after this date
+- `dateTo`: optional, format `yyyy-MM-dd`, filters records created on or before this date
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 500,
+        "destructionNumber": "DES-20260426-001",
+        "batchId": 100,
+        "batchNumber": "DUMP001-20260410-001",
+        "batchExpiryDate": "2026-04-28",
+        "batchExpiryStatus": "EXPIRING_SOON",
+        "productId": 5,
+        "productSku": "DUMP001",
+        "productName": "Frozen Dumplings",
+        "quantityDestroyed": 4,
+        "purchaseUnitPriceSnapshot": 12.50,
+        "lossAmount": 50.00,
+        "reason": "Expired stock",
+        "createdAt": "2026-04-26T09:30:00Z",
+        "createdBy": 1
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `ACCOUNTANT`
+
+### GET `/destructions/{id}`
+
+Get a destruction record detail including associated batch information.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 500,
+    "destructionNumber": "DES-20260426-001",
+    "batchId": 100,
+    "batchNumber": "DUMP001-20260410-001",
+    "batchExpiryDate": "2026-04-28",
+    "batchExpiryStatus": "EXPIRING_SOON",
+    "batchQuantityRemaining": 8,
+    "productId": 5,
+    "productSku": "DUMP001",
+    "productName": "Frozen Dumplings",
+    "inventoryTransactionId": 900,
+    "quantityDestroyed": 4,
+    "purchaseUnitPriceSnapshot": 12.50,
+    "lossAmount": 50.00,
+    "reason": "Expired stock",
+    "createdAt": "2026-04-26T09:30:00Z",
+    "createdBy": 1
+  }
+}
+```
+
+#### Failure Responses
+
+Destruction record not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_NOT_FOUND",
+  "message": "销毁记录不存在",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `ACCOUNTANT`
+
+### POST `/destructions`
+
+Create a destruction record for a specific batch and deduct stock immediately.
+
+#### Request Body
+
+```json
+{
+  "batchId": 100,
+  "quantityDestroyed": 4,
+  "reason": "Expired stock"
+}
+```
+
+#### Validation Rules
+
+- `batchId`: required
+- `quantityDestroyed`: required, `>= 1`
+- `reason`: required, cannot be blank, max length `1000`
+
+#### Business Rules
+
+- Destruction is always applied to a specific batch
+- Partial destruction is allowed as long as `quantityDestroyed <= quantityRemaining`
+- The service writes one `DESTROY` inventory transaction per destruction record
+- `purchaseUnitPriceSnapshot` and `lossAmount` are stored on the destruction row for later accounting/export use
+- Batch optimistic locking failures are translated to `DESTRUCTION_STOCK_CONFLICT`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /destructions/{id}`.
+
+#### Failure Responses
+
+Batch not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_BATCH_NOT_FOUND",
+  "message": "批次不存在或已无法销毁",
+  "data": null
+}
+```
+
+Insufficient remaining stock:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_INSUFFICIENT_STOCK",
+  "message": "批次剩余库存不足，无法销毁",
+  "data": null
+}
+```
+
+Concurrent stock conflict:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_STOCK_CONFLICT",
+  "message": "批次库存已被其他操作更新，请重试",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
 
 ## Settings APIs
 
