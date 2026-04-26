@@ -33,6 +33,10 @@
 | `ORDER_ALREADY_ROLLED_BACK` | Order has already been rolled back |
 | `ORDER_INSUFFICIENT_STOCK` | Available stock is insufficient for the requested quantity |
 | `ORDER_STOCK_CONFLICT` | Stock changed concurrently; the order should be retried |
+| `DESTRUCTION_NOT_FOUND` | Destruction record does not exist |
+| `DESTRUCTION_BATCH_NOT_FOUND` | Target batch does not exist or cannot be destroyed |
+| `DESTRUCTION_INSUFFICIENT_STOCK` | Batch remaining stock is insufficient for the requested destruction quantity |
+| `DESTRUCTION_STOCK_CONFLICT` | Batch stock changed concurrently; the destruction should be retried |
 | `INTERNAL_SERVER_ERROR` | Unexpected server error |
 
 ## Auth APIs
@@ -1741,3 +1745,459 @@ Response body structure is the same as `GET /users/{id}`.
 #### Failure Responses
 
 - `USER_NOT_FOUND`
+
+## Destruction APIs
+
+### GET `/destructions`
+
+Get paginated destruction records with optional product and date filters.
+
+#### Query Parameters
+
+- `productId`: optional, filters by product
+- `dateFrom`: optional, format `yyyy-MM-dd`, filters records created on or after this date
+- `dateTo`: optional, format `yyyy-MM-dd`, filters records created on or before this date
+- `page`: optional, default `0`
+- `size`: optional, default `20`, max `100`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "items": [
+      {
+        "id": 500,
+        "destructionNumber": "DES-20260426-001",
+        "batchId": 100,
+        "batchNumber": "DUMP001-20260410-001",
+        "batchExpiryDate": "2026-04-28",
+        "batchExpiryStatus": "EXPIRING_SOON",
+        "productId": 5,
+        "productSku": "DUMP001",
+        "productName": "Frozen Dumplings",
+        "quantityDestroyed": 4,
+        "purchaseUnitPriceSnapshot": 12.50,
+        "lossAmount": 50.00,
+        "reason": "Expired stock",
+        "createdAt": "2026-04-26T09:30:00Z",
+        "createdBy": 1
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `ACCOUNTANT`
+
+### GET `/destructions/{id}`
+
+Get a destruction record detail including associated batch information.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "id": 500,
+    "destructionNumber": "DES-20260426-001",
+    "batchId": 100,
+    "batchNumber": "DUMP001-20260410-001",
+    "batchExpiryDate": "2026-04-28",
+    "batchExpiryStatus": "EXPIRING_SOON",
+    "batchQuantityRemaining": 8,
+    "productId": 5,
+    "productSku": "DUMP001",
+    "productName": "Frozen Dumplings",
+    "inventoryTransactionId": 900,
+    "quantityDestroyed": 4,
+    "purchaseUnitPriceSnapshot": 12.50,
+    "lossAmount": 50.00,
+    "reason": "Expired stock",
+    "createdAt": "2026-04-26T09:30:00Z",
+    "createdBy": 1
+  }
+}
+```
+
+#### Failure Responses
+
+Destruction record not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_NOT_FOUND",
+  "message": "销毁记录不存在",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `ACCOUNTANT`
+
+### POST `/destructions`
+
+Create a destruction record for a specific batch and deduct stock immediately.
+
+#### Request Body
+
+```json
+{
+  "batchId": 100,
+  "quantityDestroyed": 4,
+  "reason": "Expired stock"
+}
+```
+
+#### Validation Rules
+
+- `batchId`: required
+- `quantityDestroyed`: required, `>= 1`
+- `reason`: required, cannot be blank, max length `1000`
+
+#### Business Rules
+
+- Destruction is always applied to a specific batch
+- Partial destruction is allowed as long as `quantityDestroyed <= quantityRemaining`
+- The service writes one `DESTROY` inventory transaction per destruction record
+- `purchaseUnitPriceSnapshot` and `lossAmount` are stored on the destruction row for later accounting/export use
+- Batch optimistic locking failures are translated to `DESTRUCTION_STOCK_CONFLICT`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+Response body structure is the same as `GET /destructions/{id}`.
+
+#### Failure Responses
+
+Batch not found:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_BATCH_NOT_FOUND",
+  "message": "批次不存在或已无法销毁",
+  "data": null
+}
+```
+
+Insufficient remaining stock:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_INSUFFICIENT_STOCK",
+  "message": "批次剩余库存不足，无法销毁",
+  "data": null
+}
+```
+
+Concurrent stock conflict:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "DESTRUCTION_STOCK_CONFLICT",
+  "message": "批次库存已被其他操作更新，请重试",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`
+
+## Reports APIs
+
+File export endpoints return raw file downloads instead of the standard `Result<T>` envelope. This keeps frontend blob downloads straightforward for CSV/XLSX exports.
+
+### GET `/reports/sales/export`
+
+Export active sales records within a date range as CSV or Excel.
+
+#### Query Parameters
+
+- `from`: required, format `yyyy-MM-dd`, inclusive start date
+- `to`: required, format `yyyy-MM-dd`, inclusive end date
+- `format`: optional, `csv` or `xlsx`, default `xlsx`
+
+#### Response
+
+HTTP Status: `200 OK`
+
+Content types:
+
+- `text/csv; charset=UTF-8`
+- `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+File naming pattern:
+
+- `sales-report-<from>-to-<to>.csv`
+- `sales-report-<from>-to-<to>.xlsx`
+
+#### Export Columns
+
+- `orderNumber`
+- `orderCreatedAt`
+- `customerCompanyName`
+- `productSku`
+- `productName`
+- `quantity`
+- `unitPrice`
+- `subtotal`
+- `gstAmount`
+- `lineTotal`
+- `operatorId`
+
+#### Business Rules
+
+- Only `ACTIVE` orders are exported
+- One row is produced per persisted `order_item`
+- `lineTotal = subtotal + gstAmount`
+- Empty result sets still return a file with header row(s)
+
+#### Failure Responses
+
+Validation failure:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "from must be on or before to",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `ACCOUNTANT`
+
+### GET `/reports/losses/export`
+
+Export destruction loss records within a date range as CSV or Excel.
+
+#### Query Parameters
+
+- `from`: required, format `yyyy-MM-dd`, inclusive start date
+- `to`: required, format `yyyy-MM-dd`, inclusive end date
+- `format`: optional, `csv` or `xlsx`, default `xlsx`
+
+#### Response
+
+HTTP Status: `200 OK`
+
+Content types:
+
+- `text/csv; charset=UTF-8`
+- `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+File naming pattern:
+
+- `loss-report-<from>-to-<to>.csv`
+- `loss-report-<from>-to-<to>.xlsx`
+
+#### Export Columns
+
+- `destructionNumber`
+- `destructionCreatedAt`
+- `productSku`
+- `productName`
+- `batchNumber`
+- `quantityDestroyed`
+- `purchaseUnitPrice`
+- `lossAmount`
+- `operatorId`
+- `reason`
+
+#### Business Rules
+
+- One row is produced per destruction record
+- `lossAmount` uses the persisted snapshot value on the destruction row
+- Empty result sets still return a file with header row(s)
+
+#### Failure Responses
+
+Validation failure:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "from and to are required",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`, `ACCOUNTANT`
+
+## Dashboard APIs
+
+### GET `/dashboard/summary`
+
+Return role-aware dashboard summary data for the current authenticated user.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "role": "ADMIN",
+    "warnings": {
+      "lowStockCount": 2,
+      "expiringSoonCount": 3,
+      "expiredCount": 1
+    },
+    "managerSummary": {
+      "todaySalesTotal": 1280.50,
+      "monthSalesTotal": 5666.80,
+      "pendingTaskCount": 6,
+      "topProducts": [
+        {
+          "productId": 5,
+          "productSku": "DUMP001",
+          "productName": "Frozen Dumplings",
+          "quantitySold": 24,
+          "salesAmount": 552.00
+        }
+      ]
+    },
+    "warehouseSummary": null,
+    "accountantSummary": null
+  }
+}
+```
+
+#### Role-specific Fields
+
+- `warnings`: always returned for all roles
+- `managerSummary`: returned for `ADMIN` and `MARKETING`
+- `warehouseSummary`: returned for `WAREHOUSE`
+- `accountantSummary`: returned for `ACCOUNTANT`
+
+#### Field Semantics
+
+- `warnings.lowStockCount`: number of active products below safety stock
+- `warnings.expiringSoonCount`: number of active batches with `EXPIRING_SOON`
+- `warnings.expiredCount`: number of active batches with `EXPIRED`
+- `managerSummary.pendingTaskCount`: `lowStockCount + expiringSoonCount + expiredCount`
+- `managerSummary.topProducts`: current-month top 10 sold products ranked by quantity, then sales amount
+- `warehouseSummary.todayInboundCount`: number of inbound records dated today
+- `warehouseSummary.todayOutboundCount`: number of active orders created today
+- `warehouseSummary.pendingDestructionCount`: number of expired batches still holding stock
+- `accountantSummary.monthSalesTotal`: current-month active order total
+- `accountantSummary.monthLossTotal`: current-month destruction loss total
+
+#### Access Rules
+
+- Roles: `ADMIN`, `WAREHOUSE`, `MARKETING`, `ACCOUNTANT`
+
+## Settings APIs
+
+System-wide configuration values, e.g. expiry-warning threshold consumed by the daily expiry scan and dashboard widgets. Only the manager role may read or modify settings.
+
+The endpoint returns a typed object so the frontend does not need to parse string values. Future settings can be added as additional fields on the same DTO.
+
+### GET `/api/v1/settings`
+
+Return current system settings.
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "expiryWarningDays": 30
+  }
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`
+
+### PUT `/api/v1/settings`
+
+Update system settings. Returns the updated settings on success.
+
+#### Request Body
+
+```json
+{
+  "expiryWarningDays": 45
+}
+```
+
+#### Validation Rules
+
+- `expiryWarningDays`: required, integer, range `[0, 3650]`
+
+#### Success Response
+
+HTTP Status: `200 OK`
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "Success",
+  "data": {
+    "expiryWarningDays": 45
+  }
+}
+```
+
+#### Failure Responses
+
+Validation failure:
+
+HTTP Status: `400 Bad Request`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "expiry_warning_days must be between 0 and 3650",
+  "data": null
+}
+```
+
+#### Access Rules
+
+- Roles: `ADMIN`
+
+#### Notes
+
+- Changes take effect immediately for new requests; the next scheduled expiry scan (00:00 Pacific/Auckland) uses the latest threshold
+- The service caches values in memory and refreshes the cache on every successful update
