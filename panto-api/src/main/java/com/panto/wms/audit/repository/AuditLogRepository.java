@@ -29,7 +29,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         select log
         from AuditLog log
         where (:operatorId is null or log.operatorId = :operatorId)
-          and (:entityType is null or upper(log.entityType) = upper(:entityType))
+          and (:entityTypeUpper is null or upper(log.entityType) = :entityTypeUpper)
           and (:action is null or log.action = :action)
           and (:createdFrom is null or log.createdAt >= :createdFrom)
           and (:createdTo is null or log.createdAt < :createdTo)
@@ -37,7 +37,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         """)
     Page<AuditLog> search(
         @Param("operatorId") Long operatorId,
-        @Param("entityType") String entityType,
+        @Param("entityTypeUpper") String entityTypeUpper,
         @Param("action") AuditAction action,
         @Param("createdFrom") OffsetDateTime createdFrom,
         @Param("createdTo") OffsetDateTime createdTo,

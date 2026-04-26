@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -96,9 +97,13 @@ public class AuditLogService {
         int page,
         int size
     ) {
+        String normalizedEntityType = normalize(entityType);
+        String entityTypeUpper = normalizedEntityType == null
+            ? null
+            : normalizedEntityType.toUpperCase(Locale.ROOT);
         Page<AuditLog> result = auditLogRepository.search(
             operatorId,
-            normalize(entityType),
+            entityTypeUpper,
             action,
             toStartOfDay(dateFrom),
             toStartOfNextDay(dateTo),
