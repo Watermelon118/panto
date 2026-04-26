@@ -2,7 +2,9 @@ package com.panto.wms.order.repository;
 
 import com.panto.wms.order.domain.OrderStatus;
 import com.panto.wms.order.entity.Order;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -71,5 +73,40 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         @Param("createdAtTo") OffsetDateTime createdAtTo,
         @Param("status") String status,
         Pageable pageable
+    );
+
+    /**
+     * 查询指定状态和时间范围内的订单列表。
+     *
+     * @param status 订单状态
+     * @param start 起始时间（含）
+     * @param end 结束时间（不含）
+     * @return 订单列表
+     */
+    List<Order> findByStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+        OrderStatus status,
+        OffsetDateTime start,
+        OffsetDateTime end
+    );
+
+    /**
+     * 汇总指定状态和时间范围内订单的销售总额。
+     *
+     * @param status 订单状态
+     * @param start 起始时间（含）
+     * @param end 结束时间（不含）
+     * @return 销售总额
+     */
+    @Query("""
+        select coalesce(sum(o.totalAmount), 0)
+        from Order o
+        where o.status = :status
+          and o.createdAt >= :start
+          and o.createdAt < :end
+        """)
+    BigDecimal sumTotalAmountByStatusAndCreatedAtRange(
+        @Param("status") OrderStatus status,
+        @Param("start") OffsetDateTime start,
+        @Param("end") OffsetDateTime end
     );
 }
