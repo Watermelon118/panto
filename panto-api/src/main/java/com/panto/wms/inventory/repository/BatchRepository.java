@@ -54,6 +54,18 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     List<Batch> findExpiringBatches(@Param("threshold") LocalDate threshold);
 
     /**
+     * 返回所有仍有剩余库存的批次，按到期日升序排列，供到期扫描使用。
+     *
+     * @return 仍有库存的批次列表
+     */
+    @Query("""
+        select b from Batch b
+        where b.quantityRemaining > 0
+        order by b.expiryDate asc
+        """)
+    List<Batch> findAllActive();
+
+    /**
      * 返回指定入库明细 ID 集合对应的所有批次，用于更新入库单时校验库存是否被消耗。
      *
      * @param inboundItemIds 入库明细 ID 集合
