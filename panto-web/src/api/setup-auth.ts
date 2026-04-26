@@ -43,7 +43,7 @@ export function setupAuthInterceptors() {
 
         return apiClient(requestConfig);
       } catch (refreshError) {
-        useAuthStore.getState().logout();
+        await useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       }
     },

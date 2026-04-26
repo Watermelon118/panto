@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import { login as loginRequest, refresh as refreshRequest } from '../api/auth';
+import {
+  changePassword as changePasswordRequest,
+  login as loginRequest,
+  logout as logoutRequest,
+  refresh as refreshRequest,
+} from '../api/auth';
 import type { AuthUser, LoginResponse } from '../types/auth';
 
 interface AuthState {
@@ -9,7 +14,8 @@ interface AuthState {
   hydrateAuth: (response: LoginResponse) => void;
   login: (username: string, password: string) => Promise<void>;
   refresh: () => Promise<void>;
-  logout: () => void;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 function toAuthUser(response: LoginResponse): AuthUser {
@@ -54,11 +60,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
-  logout: () => {
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await changePasswordRequest({ currentPassword, newPassword });
+
     set({
-      accessToken: null,
-      user: null,
-      isAuthenticated: false,
+      accessToken: response.accessToken,
+      user: toAuthUser(response),
+      isAuthenticated: true,
     });
+  },
+
+  logout: async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      set({
+        accessToken: null,
+        user: null,
+        isAuthenticated: false,
+      });
+    }
   },
 }));

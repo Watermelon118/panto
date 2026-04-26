@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
 import { BatchListPage } from './pages/BatchListPage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DestructionCreatePage } from './pages/DestructionCreatePage';
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      { path: '/change-password', element: <ChangePasswordPage /> },
       {
         element: <AppLayout />,
         children: [

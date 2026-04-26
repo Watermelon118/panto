@@ -13,7 +13,7 @@ function App() {
       try {
         await useAuthStore.getState().refresh();
       } catch {
-        useAuthStore.getState().logout();
+        await useAuthStore.getState().logout();
       } finally {
         if (active) setIsBootstrapping(false);
       }

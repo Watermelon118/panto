@@ -1,11 +1,16 @@
 package com.panto.wms.auth.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.panto.wms.common.api.Result;
+import com.panto.wms.common.exception.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -20,16 +25,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final ObjectMapper objectMapper;
 
     /**
      * 创建 JWT 认证过滤器。
      *
      * @param jwtTokenProvider JWT 处理组件
+     * @param objectMapper JSON 序列化组件
      */
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, ObjectMapper objectMapper) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -51,6 +60,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            if (authenticatedUser.isMustChangePassword() && !isPasswordChangeAllowedRequest(request)) {
+                writePasswordChangeRequiredResponse(response);
+                return;
+            }
         }
 
         filterChain.doFilter(request, response);
@@ -64,5 +78,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return authorizationHeader.substring(BEARER_PREFIX.length());
+    }
+
+    private boolean isPasswordChangeAllowedRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path != null && path.startsWith(AUTH_PATH_PREFIX);
+    }
+
+    private void writePasswordChangeRequiredResponse(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(
+            response.getWriter(),
+            Result.failure(
+                ErrorCode.AUTH_PASSWORD_CHANGE_REQUIRED.getCode(),
+                ErrorCode.AUTH_PASSWORD_CHANGE_REQUIRED.getDefaultMessage()
+            )
+        );
     }
 }

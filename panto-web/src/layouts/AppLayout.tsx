@@ -59,6 +59,11 @@ export function AppLayout() {
   const totalWarningCount = expiryWarningCount + expiredCount + lowStockCount;
   const warningTarget = getWarningTarget(expiryWarningCount, expiredCount, lowStockCount);
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   useEffect(() => {
     if (!user?.username || !dashboardQuery.data || totalWarningCount <= 0) {
       return;
@@ -115,7 +120,7 @@ export function AppLayout() {
             */}
             <button
               type="button"
-              onClick={logout}
+              onClick={() => void handleLogout()}
               className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/20"
             >
               Sign Out

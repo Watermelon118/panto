@@ -1,6 +1,7 @@
 package com.panto.wms.auth.service;
 
 import com.panto.wms.auth.domain.LoginFailureReason;
+import com.panto.wms.auth.dto.ChangePasswordRequest;
 import com.panto.wms.auth.dto.LoginRequest;
 import com.panto.wms.auth.dto.LoginResponse;
 import com.panto.wms.auth.entity.LoginAttempt;
@@ -166,6 +167,51 @@ public class AuthService {
         );
 
         return new LoginResult(response, newRefreshToken);
+    }
+
+    /**
+     * 修改当前登录用户密码，并清除首次登录改密标记。
+     *
+     * @param userId 当前用户 ID
+     * @param request 修改密码请求
+     * @return 更新后的登录结果
+     */
+    @Transactional
+    public LoginResult changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_UNAUTHORIZED));
+
+        if (Boolean.FALSE.equals(user.getActive())) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "账号已停用");
+        }
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.AUTH_CURRENT_PASSWORD_INCORRECT);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
+        user.setLockedUntil(null);
+        user.setUpdatedAt(now);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+
+        AuthenticatedUser authenticatedUser = AuthenticatedUser.from(user);
+        String accessToken = jwtTokenProvider.generateAccessToken(authenticatedUser);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(authenticatedUser);
+
+        LoginResponse response = new LoginResponse(
+            accessToken,
+            "Bearer",
+            jwtProperties.getAccessTokenTtl().toSeconds(),
+            user.getId(),
+            user.getUsername(),
+            user.getRole(),
+            Boolean.TRUE.equals(user.getMustChangePassword())
+        );
+
+        return new LoginResult(response, refreshToken);
     }
 
     private boolean isUserLocked(User user, OffsetDateTime now) {

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.panto.wms.auth.domain.LoginFailureReason;
 import com.panto.wms.auth.domain.UserRole;
+import com.panto.wms.auth.dto.ChangePasswordRequest;
 import com.panto.wms.auth.dto.LoginRequest;
 import com.panto.wms.auth.entity.LoginAttempt;
 import com.panto.wms.auth.entity.User;
@@ -196,6 +197,46 @@ class AuthServiceTest {
         );
 
         assertEquals(ErrorCode.AUTH_FORBIDDEN, exception.getErrorCode());
+    }
+
+    @Test
+    void changePasswordShouldUpdatePasswordAndClearMustChangeFlag() {
+        User user = buildUser();
+        when(jwtProperties.getAccessTokenTtl()).thenReturn(Duration.ofHours(2));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("admin123", user.getPasswordHash())).thenReturn(true);
+        when(passwordEncoder.encode("newpass123")).thenReturn("encoded-new-password");
+        when(jwtTokenProvider.generateAccessToken(any(AuthenticatedUser.class))).thenReturn("changed-access-token");
+        when(jwtTokenProvider.generateRefreshToken(any(AuthenticatedUser.class))).thenReturn("changed-refresh-token");
+
+        AuthService.LoginResult result = authService.changePassword(
+            1L,
+            new ChangePasswordRequest("admin123", "newpass123")
+        );
+
+        assertEquals("changed-access-token", result.response().accessToken());
+        assertEquals("changed-refresh-token", result.refreshToken());
+        assertEquals(false, result.response().mustChangePassword());
+
+        verify(userRepository).save(userCaptor.capture());
+        User savedUser = userCaptor.getValue();
+        assertEquals("encoded-new-password", savedUser.getPasswordHash());
+        assertEquals(Boolean.FALSE, savedUser.getMustChangePassword());
+    }
+
+    @Test
+    void changePasswordShouldRejectWrongCurrentPassword() {
+        User user = buildUser();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong", user.getPasswordHash())).thenReturn(false);
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> authService.changePassword(1L, new ChangePasswordRequest("wrong", "newpass123"))
+        );
+
+        assertEquals(ErrorCode.AUTH_CURRENT_PASSWORD_INCORRECT, exception.getErrorCode());
+        verify(userRepository, never()).save(any(User.class));
     }
 
     private User buildUser() {
