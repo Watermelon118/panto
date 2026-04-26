@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useDashboardSummary } from '../api/dashboard';
+import { WarningBadge } from '../components/WarningBadge';
 import { useAuthStore } from '../store/auth-store';
 import type { UserRole } from '../types/auth';
 
@@ -22,12 +24,15 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function AppLayout() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const dashboardQuery = useDashboardSummary();
 
   const visibleNav = NAV_ITEMS.filter(
     (item) => user?.role && item.roles.includes(user.role),
   );
+  const expiryWarningCount = dashboardQuery.data?.warnings.expiringSoonCount ?? 0;
 
   return (
     <div className="flex min-h-screen bg-stone-950 text-stone-100">
@@ -61,6 +66,10 @@ export function AppLayout() {
       <div className="ml-56 flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center justify-end border-b border-white/10 bg-stone-900/60 px-6 backdrop-blur">
           <div className="flex items-center gap-3 text-sm text-stone-300">
+            <WarningBadge
+              count={expiryWarningCount}
+              onClick={() => navigate('/inventory/batches?status=EXPIRING_SOON')}
+            />
             <span>{user?.username} | {user?.role}</span>
             {/*
               {user?.username} · {user?.role}

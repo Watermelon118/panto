@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useBatches } from '../api/inventory';
 import { useProducts } from '../api/products';
 import { Pagination } from '../components/Pagination';
@@ -19,10 +20,25 @@ const EXPIRY_STATUS_CLS: Record<ExpiryStatus, string> = {
   EXPIRED: 'bg-red-900/40 text-red-400',
 };
 
+function parseExpiryStatus(value: string | null): ExpiryStatus | undefined {
+  if (value === 'NORMAL' || value === 'EXPIRING_SOON' || value === 'EXPIRED') {
+    return value;
+  }
+  return undefined;
+}
+
 export function BatchListPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [productId, setProductId] = useState<number | undefined>(undefined);
-  const [expiryStatus, setExpiryStatus] = useState<ExpiryStatus | undefined>(undefined);
+  const [expiryStatus, setExpiryStatus] = useState<ExpiryStatus | undefined>(() =>
+    parseExpiryStatus(searchParams.get('status')),
+  );
+
+  useEffect(() => {
+    setExpiryStatus(parseExpiryStatus(searchParams.get('status')));
+    setPage(0);
+  }, [searchParams]);
 
   const { data, isLoading } = useBatches({
     productId,
@@ -66,7 +82,9 @@ export function BatchListPage() {
         <select
           value={expiryStatus ?? ''}
           onChange={(e) => {
-            setExpiryStatus((e.target.value as ExpiryStatus) || undefined);
+            const nextStatus = parseExpiryStatus(e.target.value);
+            setExpiryStatus(nextStatus);
+            setSearchParams(nextStatus ? { status: nextStatus } : {});
             handleFilterChange();
           }}
           className={selectCls}
@@ -82,7 +100,12 @@ export function BatchListPage() {
         {hasFilter && (
           <button
             type="button"
-            onClick={() => { setProductId(undefined); setExpiryStatus(undefined); setPage(0); }}
+            onClick={() => {
+              setProductId(undefined);
+              setExpiryStatus(undefined);
+              setSearchParams({});
+              setPage(0);
+            }}
             className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-stone-400 transition hover:bg-white/5 hover:text-stone-100"
           >
             Clear filters
