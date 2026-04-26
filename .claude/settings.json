@@ -26,7 +26,6 @@
       "Bash(rm -rf *)",
       "Bash(git push *)",
       "Bash(git reset --hard *)",
-      "Bash(git commit *)",
       "Write(.env*)",
       "Write(**/application.yml)",
       "Write(docker-compose.yml)",
