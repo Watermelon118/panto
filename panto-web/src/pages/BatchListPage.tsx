@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBatches } from '../api/inventory';
 import { useProducts } from '../api/products';
 import { Pagination } from '../components/Pagination';
@@ -28,6 +28,7 @@ function parseExpiryStatus(value: string | null): ExpiryStatus | undefined {
 }
 
 export function BatchListPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [productId, setProductId] = useState<number | undefined>(undefined);
@@ -130,6 +131,7 @@ export function BatchListPage() {
                 <th className="px-6 py-4 text-right">Remaining</th>
                 <th className="px-6 py-4 text-right">Unit Price</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -152,6 +154,19 @@ export function BatchListPage() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${EXPIRY_STATUS_CLS[batch.expiryStatus]}`}>
                       {EXPIRY_STATUS_LABELS[batch.expiryStatus]}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {batch.quantityRemaining > 0 && batch.expiryStatus !== 'NORMAL' ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/destructions/new?productId=${batch.productId}&batchId=${batch.id}`)}
+                        className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
+                      >
+                        Destroy
+                      </button>
+                    ) : (
+                      <span className="text-xs text-stone-500">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
