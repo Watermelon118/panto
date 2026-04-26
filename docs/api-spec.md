@@ -2181,7 +2181,7 @@ File naming pattern:
 - `subtotal`
 - `gstAmount`
 - `lineTotal`
-- `operatorId`
+- `operator`
 
 #### Business Rules
 
@@ -2242,7 +2242,7 @@ File naming pattern:
 - `quantityDestroyed`
 - `purchaseUnitPrice`
 - `lossAmount`
-- `operatorId`
+- `operator`
 - `reason`
 
 #### Business Rules
