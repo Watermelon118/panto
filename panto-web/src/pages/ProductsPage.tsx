@@ -161,40 +161,55 @@ export function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {data?.items.map((product) => (
-                <tr key={product.id} className="border-b border-white/5 transition hover:bg-white/[0.03]">
-                  <td className="px-6 py-4 font-mono text-xs text-amber-300">{product.sku}</td>
-                  <td className="px-6 py-4 font-medium text-stone-100">{product.name}</td>
-                  <td className="px-6 py-4 text-stone-400">{product.category}</td>
-                  <td className="px-6 py-4 text-stone-400">{product.unit}</td>
-                  <td className="px-6 py-4 text-right text-stone-300">
-                    ${product.referenceSalePrice.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 text-right text-stone-300">{product.currentStock}</td>
-                  <td className="px-6 py-4">
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus.mutate({ id: product.id, active: !product.active })}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                        product.active
-                          ? 'bg-emerald-400/15 text-emerald-400 hover:bg-emerald-400/25'
-                          : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
-                      }`}
-                    >
-                      {product.active ? 'Active' : 'Inactive'}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(product)}
-                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-400 transition hover:bg-white/10 hover:text-stone-100"
-                    >
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {data?.items.map((product) => {
+                const isLowStock = product.active && product.currentStock < product.safetyStock;
+
+                return (
+                  <tr key={product.id} className="border-b border-white/5 transition hover:bg-white/[0.03]">
+                    <td className="px-6 py-4 font-mono text-xs text-amber-300">{product.sku}</td>
+                    <td className="px-6 py-4 font-medium text-stone-100">{product.name}</td>
+                    <td className="px-6 py-4 text-stone-400">{product.category}</td>
+                    <td className="px-6 py-4 text-stone-400">{product.unit}</td>
+                    <td className="px-6 py-4 text-right text-stone-300">
+                      ${product.referenceSalePrice.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className={isLowStock ? 'font-semibold text-red-400' : 'text-stone-300'}>
+                          {product.currentStock}
+                        </span>
+                        {isLowStock && (
+                          <span className="rounded-full bg-red-900/40 px-2.5 py-0.5 text-xs font-semibold text-red-400">
+                            Low
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={() => toggleStatus.mutate({ id: product.id, active: !product.active })}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                          product.active
+                            ? 'bg-emerald-400/15 text-emerald-400 hover:bg-emerald-400/25'
+                            : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
+                        }`}
+                      >
+                        {product.active ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(product)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-stone-400 transition hover:bg-white/10 hover:text-stone-100"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

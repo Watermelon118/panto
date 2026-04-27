@@ -31,13 +31,14 @@ interface TransactionParams {
   size: number;
 }
 
-export function useStockSummary(params: StockParams) {
+export function useStockSummary(params: StockParams, enabled = true) {
   return useQuery({
     queryKey: ['inventory', 'stock', params],
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: StockPage }>('/inventory', { params });
       return data.data;
     },
+    enabled,
   });
 }
 
@@ -66,13 +67,14 @@ export function useTransactions(params: TransactionParams) {
   });
 }
 
-export function useLowStockProducts() {
+export function useLowStockProducts(enabled = true) {
   return useQuery({
     queryKey: ['inventory', 'low-stock'],
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: StockSummary[] }>('/inventory/low-stock');
       return data.data;
     },
+    enabled,
   });
 }
 

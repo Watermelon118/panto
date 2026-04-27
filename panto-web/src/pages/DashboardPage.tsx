@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useDashboardSummary } from '../api/dashboard';
 import type { DashboardSummary, DashboardWarnings } from '../types/dashboard';
 import { extractErrorMessage } from '../utils/error';
@@ -45,11 +46,13 @@ function StatCard({
   value,
   tone,
   helper,
+  to,
 }: {
   label: string;
   value: string | number;
   tone: 'red' | 'amber' | 'stone' | 'emerald';
   helper?: string;
+  to?: string;
 }) {
   const toneCls = {
     red: 'border-red-500/20 bg-red-950/10 text-red-300',
@@ -57,14 +60,28 @@ function StatCard({
     stone: 'border-white/10 bg-white/5 text-stone-200',
     emerald: 'border-emerald-400/20 bg-emerald-950/10 text-emerald-300',
   }[tone];
-
-  return (
-    <article className={`rounded-[1.5rem] border p-5 ${toneCls}`}>
+  const cardCls = `rounded-[1.5rem] border p-5 ${toneCls}`;
+  const content = (
+    <>
       <p className="text-xs font-semibold tracking-[0.14em] uppercase opacity-80">{label}</p>
       <p className="mt-3 text-3xl font-black tracking-tight text-white">{value}</p>
       {helper ? <p className="mt-3 text-sm leading-6 text-stone-400">{helper}</p> : null}
-    </article>
+    </>
   );
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        aria-label={`Open ${label}`}
+        className={`${cardCls} block transition hover:border-white/25 hover:bg-white/[0.03] focus:ring-2 focus:ring-amber-300/40 focus:outline-none`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <article className={cardCls}>{content}</article>;
 }
 
 function WarningSection({ warnings }: { warnings: DashboardWarnings }) {
@@ -85,12 +102,14 @@ function WarningSection({ warnings }: { warnings: DashboardWarnings }) {
           value={warnings.lowStockCount}
           tone="red"
           helper="Active products below their configured safety stock threshold."
+          to="/inventory/stock?lowStock=true"
         />
         <StatCard
           label="Expiring Soon"
           value={warnings.expiringSoonCount}
           tone="amber"
           helper="Batches inside the current expiry warning window."
+          to="/inventory/batches?status=EXPIRING_SOON"
         />
         <StatCard
           label="Expired"

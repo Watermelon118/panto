@@ -1,23 +1,44 @@
 import { useState } from 'react';
-import { useStockSummary } from '../api/inventory';
+import { useSearchParams } from 'react-router-dom';
+import { useLowStockProducts, useStockSummary } from '../api/inventory';
 import { Pagination } from '../components/Pagination';
 
 const inputCls =
   'rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/20 placeholder:text-stone-500';
 
 export function StockSummaryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [keyword, setKeyword] = useState('');
   const [category, setCategory] = useState('');
+  const isLowStockView = searchParams.get('lowStock') === 'true';
 
-  const { data, isLoading } = useStockSummary({
-    keyword: keyword || undefined,
-    category: category || undefined,
-    page,
-    size: 20,
-  });
+  const stockSummaryQuery = useStockSummary(
+    {
+      keyword: keyword || undefined,
+      category: category || undefined,
+      page,
+      size: 20,
+    },
+    !isLowStockView,
+  );
+  const lowStockQuery = useLowStockProducts(isLowStockView);
 
   const handleFilterChange = () => setPage(0);
+  const normalizedKeyword = keyword.trim().toLowerCase();
+  const normalizedCategory = category.trim().toLowerCase();
+  const lowStockItems = (lowStockQuery.data ?? []).filter((item) => {
+    const matchesKeyword =
+      !normalizedKeyword ||
+      item.sku.toLowerCase().includes(normalizedKeyword) ||
+      item.name.toLowerCase().includes(normalizedKeyword);
+    const matchesCategory =
+      !normalizedCategory || item.category.toLowerCase().includes(normalizedCategory);
+
+    return matchesKeyword && matchesCategory;
+  });
+  const items = isLowStockView ? lowStockItems : (stockSummaryQuery.data?.items ?? []);
+  const isLoading = isLowStockView ? lowStockQuery.isLoading : stockSummaryQuery.isLoading;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -43,22 +64,29 @@ export function StockSummaryPage() {
           placeholder="Category…"
           className={inputCls}
         />
-        {(keyword || category) && (
+        {(keyword || category || isLowStockView) && (
           <button
             type="button"
-            onClick={() => { setKeyword(''); setCategory(''); setPage(0); }}
+            onClick={() => { setKeyword(''); setCategory(''); setSearchParams({}); setPage(0); }}
             className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-stone-400 transition hover:bg-white/5 hover:text-stone-100"
           >
             Clear filters
           </button>
+        )}
+        {isLowStockView && (
+          <span className="rounded-full border border-red-400/30 bg-red-950/20 px-3 py-2 text-xs font-semibold text-red-300">
+            Low stock only
+          </span>
         )}
       </div>
 
       <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5">
         {isLoading ? (
           <div className="p-12 text-center text-sm text-stone-500">Loading…</div>
-        ) : data?.items.length === 0 ? (
-          <div className="p-12 text-center text-sm text-stone-500">No products found.</div>
+        ) : items.length === 0 ? (
+          <div className="p-12 text-center text-sm text-stone-500">
+            {isLowStockView ? 'No low-stock products found.' : 'No products found.'}
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -73,7 +101,7 @@ export function StockSummaryPage() {
               </tr>
             </thead>
             <tbody>
-              {data?.items.map((item) => (
+              {items.map((item) => (
                 <tr key={item.productId} className="border-b border-white/5">
                   <td className="px-6 py-4 font-mono text-xs text-amber-300">{item.sku}</td>
                   <td className="px-6 py-4 text-stone-200">{item.name}</td>
@@ -99,12 +127,12 @@ export function StockSummaryPage() {
         )}
       </div>
 
-      {data && data.totalPages > 1 && (
+      {!isLowStockView && stockSummaryQuery.data && stockSummaryQuery.data.totalPages > 1 && (
         <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          totalElements={data.totalElements}
-          size={data.size}
+          page={stockSummaryQuery.data.page}
+          totalPages={stockSummaryQuery.data.totalPages}
+          totalElements={stockSummaryQuery.data.totalElements}
+          size={stockSummaryQuery.data.size}
           onPageChange={setPage}
         />
       )}
