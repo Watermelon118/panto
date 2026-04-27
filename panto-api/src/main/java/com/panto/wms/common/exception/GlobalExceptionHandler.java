@@ -1,10 +1,14 @@
 package com.panto.wms.common.exception;
 
 import com.panto.wms.common.api.Result;
+import com.panto.wms.common.logging.RequestLoggingFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.MDC;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * 统一处理控制器层抛出的异常，并转换为标准响应结构。
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -58,10 +63,19 @@ public class GlobalExceptionHandler {
      * 处理未预期的系统异常。
      *
      * @param ex 未知异常
+     * @param request HTTP 请求
      * @return 标准失败响应
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Result<Void>> handleUnexpectedException(Exception ex) {
+    public ResponseEntity<Result<Void>> handleUnexpectedException(Exception ex, HttpServletRequest request) {
+        log.error(
+            "Unexpected exception: traceId={}, method={}, path={}",
+            MDC.get(RequestLoggingFilter.TRACE_ID_MDC_KEY),
+            request.getMethod(),
+            request.getRequestURI(),
+            ex
+        );
+
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(Result.failure(

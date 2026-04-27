@@ -1,6 +1,8 @@
 package com.panto.wms.auth.security;
 
+import com.panto.wms.common.logging.RequestLoggingFilter;
 import java.util.List;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -56,6 +58,32 @@ public class SecurityConfig {
     }
 
     /**
+     * 配置请求日志过滤器。
+     *
+     * @return 请求日志过滤器
+     */
+    @Bean
+    public RequestLoggingFilter requestLoggingFilter() {
+        return new RequestLoggingFilter();
+    }
+
+    /**
+     * 禁止请求日志过滤器被 Servlet 容器自动注册，避免和 Spring Security 过滤器链重复执行。
+     *
+     * @param requestLoggingFilter 请求日志过滤器
+     * @return 禁用自动注册的过滤器注册对象
+     */
+    @Bean
+    public FilterRegistrationBean<RequestLoggingFilter> requestLoggingFilterRegistration(
+        RequestLoggingFilter requestLoggingFilter
+    ) {
+        FilterRegistrationBean<RequestLoggingFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(requestLoggingFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    /**
      * 配置本地开发环境的跨域规则。
      *
      * @return CORS 配置源
@@ -81,11 +109,15 @@ public class SecurityConfig {
      * 配置 Spring Security 过滤器链。
      *
      * @param http HttpSecurity 配置入口
+     * @param requestLoggingFilter 请求日志过滤器
      * @return 过滤器链
      * @throws Exception 配置异常
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        RequestLoggingFilter requestLoggingFilter
+    ) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
@@ -96,9 +128,11 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
