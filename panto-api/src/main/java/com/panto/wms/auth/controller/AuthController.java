@@ -109,7 +109,7 @@ public class AuthController {
     private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {
         return ResponseCookie.from(jwtProperties.getRefreshCookieName(), value)
             .httpOnly(true)
-            .secure(false)
+            .secure(jwtProperties.isRefreshCookieSecure())
             .sameSite("Strict")
             .path("/api/v1/auth")
             .maxAge(maxAgeSeconds)

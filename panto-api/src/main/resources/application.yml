@@ -34,3 +34,4 @@ panto:
     access-token-ttl: "PT2H"
     refresh-token-ttl: "P7D"
     refresh-cookie-name: "refresh_token"
+    refresh-cookie-secure: false

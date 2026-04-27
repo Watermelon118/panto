@@ -21,4 +21,5 @@ public class JwtProperties {
     private Duration accessTokenTtl = Duration.ofHours(2);
     private Duration refreshTokenTtl = Duration.ofDays(7);
     private String refreshCookieName = "refresh_token";
+    private boolean refreshCookieSecure = false;
 }
