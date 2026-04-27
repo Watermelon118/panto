@@ -1,12 +1,18 @@
 services:
   # 公网入口。浏览器只访问这个服务，后端和数据库不直接暴露到公网。
+  # HTTPS 由 EC2 上 Certbot 申请的 Let's Encrypt 证书提供，挂载 /etc/letsencrypt 即可使用。
+  # 容器名固定为 panto-gateway，以便证书续签 deploy hook 调用 docker exec 重载配置。
   gateway:
     image: nginx:stable-alpine
+    container_name: panto-gateway
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/https.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       web:
         condition: service_healthy
