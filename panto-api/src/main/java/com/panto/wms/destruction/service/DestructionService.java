@@ -17,12 +17,14 @@ import com.panto.wms.inventory.repository.BatchRepository;
 import com.panto.wms.inventory.repository.InventoryTransactionRepository;
 import com.panto.wms.product.entity.Product;
 import com.panto.wms.product.repository.ProductRepository;
+import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,6 +34,8 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,11 +122,13 @@ public class DestructionService {
         int page,
         int size
     ) {
-        PageRequest pageRequest = PageRequest.of(page, size);
-        Page<Destruction> result = destructionRepository.findByFilters(
-            productId,
-            toStartOfDay(dateFrom),
-            toStartOfNextDay(dateTo),
+        PageRequest pageRequest = PageRequest.of(
+            page,
+            size,
+            Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))
+        );
+        Page<Destruction> result = destructionRepository.findAll(
+            buildFilterSpecification(productId, toStartOfDay(dateFrom), toStartOfNextDay(dateTo)),
             pageRequest
         );
 
@@ -293,6 +299,28 @@ public class DestructionService {
             destruction.getCreatedAt(),
             destruction.getCreatedBy()
         );
+    }
+
+    private Specification<Destruction> buildFilterSpecification(
+        Long productId,
+        OffsetDateTime createdAtFrom,
+        OffsetDateTime createdAtTo
+    ) {
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (productId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("productId"), productId));
+            }
+            if (createdAtFrom != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), createdAtFrom));
+            }
+            if (createdAtTo != null) {
+                predicates.add(criteriaBuilder.lessThan(root.get("createdAt"), createdAtTo));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
     private OffsetDateTime toStartOfDay(LocalDate date) {

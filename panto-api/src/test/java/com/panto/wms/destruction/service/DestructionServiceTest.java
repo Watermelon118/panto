@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +39,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /**
@@ -175,7 +178,10 @@ class DestructionServiceTest {
         Destruction destruction = buildDestruction(500L);
         PageImpl<Destruction> page = new PageImpl<>(List.of(destruction), PageRequest.of(0, 20), 1);
 
-        when(destructionRepository.findByFilters(null, null, null, PageRequest.of(0, 20))).thenReturn(page);
+        when(destructionRepository.findAll(
+            anyDestructionSpecification(),
+            eq(destructionPageRequest(0, 20))
+        )).thenReturn(page);
         when(batchRepository.findAllById(List.of(BATCH_ID))).thenReturn(List.of(buildBatch(8)));
         when(productRepository.findAllById(List.of(PRODUCT_ID))).thenReturn(List.of(buildProduct()));
 
@@ -186,6 +192,25 @@ class DestructionServiceTest {
         assertEquals("BATCH-001", response.items().getFirst().batchNumber());
         assertEquals("Frozen Dumplings", response.items().getFirst().productName());
         assertEquals(new BigDecimal("50.00"), response.items().getFirst().lossAmount());
+    }
+
+    @Test
+    void listDestructionsShouldUseRequestedFiltersAndStableSort() {
+        LocalDate dateFrom = LocalDate.of(2026, 4, 1);
+        LocalDate dateTo = LocalDate.of(2026, 4, 27);
+        PageImpl<Destruction> page = new PageImpl<>(List.of(), PageRequest.of(1, 10), 0);
+
+        when(destructionRepository.findAll(
+            anyDestructionSpecification(),
+            eq(destructionPageRequest(1, 10))
+        )).thenReturn(page);
+
+        DestructionPageResponse response = destructionService.listDestructions(PRODUCT_ID, dateFrom, dateTo, 1, 10);
+
+        assertEquals(1, response.page());
+        assertEquals(10, response.size());
+        assertEquals(0, response.totalElements());
+        verify(destructionRepository).findAll(anyDestructionSpecification(), eq(destructionPageRequest(1, 10)));
     }
 
     @Test
@@ -236,6 +261,18 @@ class DestructionServiceTest {
         batch.setCreatedBy(OPERATOR_ID);
         batch.setUpdatedBy(OPERATOR_ID);
         return batch;
+    }
+
+    private Specification<Destruction> anyDestructionSpecification() {
+        return any();
+    }
+
+    private PageRequest destructionPageRequest(int page, int size) {
+        return PageRequest.of(
+            page,
+            size,
+            Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))
+        );
     }
 
     private Product buildProduct() {
