@@ -2,9 +2,8 @@
 
 Panto is a single-warehouse food warehouse management system for small B2B wholesale businesses. The reference scenario is a New Zealand food wholesaler that needs practical workflows for products, customers, inventory, inbound stock, orders, stock destruction, reports, and audit logs.
 
-Live site: [https://panto-wms.com](https://panto-wms.com)
+Live site: [https://panto-wms.com](https://panto-wms.com)   Account: admin    Password: bcptdtptp0
 
-Demo access is not published in this repository. Do not commit production passwords or admin credentials.
 
 ## Features
 
